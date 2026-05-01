@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>neuro — neural audio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    /* ─── Reset & Variables ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:         #07070d;
+      --surface:    #0d0d1c;
+      --surface-2:  #111127;
+      --border:     rgba(255,255,255,0.07);
+      --border-2:   rgba(255,255,255,0.12);
+      --text:       #d8daf0;
+      --text-2:     #8486a8;
+      --text-3:     #3a3a5c;
+      --mode-color: #4a8fff;
+      --font-head:  'Syne', sans-serif;
+      --font-mono:  'Space Mono', monospace;
+      --font-body:  'DM Sans', sans-serif;
+      --radius:     12px;
+      --radius-sm:  8px;
+      --transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    /* ─── Animated Background Glow ─────────────────────────────── */
+    #bg-glow {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      overflow: hidden;
+    }
+    #bg-glow::before, #bg-glow::after {
+      content: '';
+      position: absolute;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--mode-color) 0%, transparent 70%);
+      transition: background 1.2s ease;
+    }
+    #bg-glow::before {
+      width: 70vw; height: 70vw;
+      opacity: 0.035; top: -25%; left: -15%;
+      animation: glow-a 28s ease-in-out infinite alternate;
+    }
+    #bg-glow::after {
+      width: 55vw; height: 55vw;
+      opacity: 0.025; bottom: -25%; right: -10%;
+      animation: glow-b 35s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow-a {
+      from { transform: translate(0,0) scale(1); }
+      to   { transform: translate(8vw, 12vh) scale(1.25); }
+    }
+    @keyframes glow-b {
+      from { transform: translate(0,0) scale(1.1); }
+      to   { transform: translate(-10vw, -8vh) scale(0.85); }
+    }
+
+    /* ─── Layout ────────────────────────────────────────────────── */
+    #app {
+      position: relative; z-index: 1;
+      max-width: 860px; margin: 0 auto;
+      padding: 0 20px 60px;
+    }
+
+    /* ─── Header ────────────────────────────────────────────────── */
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 28px 0 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 32px;
+    }
+
+    .logo {
+      font-family: var(--font-head);
+      font-weight: 800; font-size: 1.35rem;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .logo span {
+      color: var(--mode-color);
+      transition: color var(--transition);
+    }
+
+    #status-pill {
+      display: flex; align-items: center; gap: 7px;
+      font-family: var(--font-mono); font-size: 0.62rem;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-2);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px; padding: 5px 12px;
+      transition: all var(--transition);
+    }
+    #status-pill .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--text-3);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    #status-pill.playing .dot {
+      background: var(--mode-color);
+      box-shadow: 0 0 8px var(--mode-color);
+      animation: pulse-dot 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; } 50% { opacity: 0.4; }
+    }
+    #status-pill.playing { color: var(--text); border-color: var(--border-2); }
+
+    .header-btns { display: flex; gap: 8px; }
+    .icon-btn {
+      background: none; border: 1px solid var(--border);
+      border-radius: var(--radius-sm); padding: 7px 12px;
+      color: var(--text-2); font-family: var(--font-body);
+      font-size: 0.75rem; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .icon-btn:hover { border-color: var(--border-2); color: var(--text); }
+    .icon-btn.active { border-color: var(--mode-color); color: var(--mode-color); }
+
+    /* ─── Visualizer ────────────────────────────────────────────── */
+    .viz-section {
+      margin-bottom: 8px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+    }
+
+    #waveform {
+      width: 100%; height: 130px; display: block;
+    }
+
+    /* ─── Mode Info ─────────────────────────────────────────────── */
+    .mode-info {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 16px 20px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+      margin-bottom: 24px;
+      min-height: 64px;
+    }
+
+    .mode-info-left { display: flex; flex-direction: column; gap: 3px; }
+    #mode-name {
+      font-family: var(--font-head); font-weight: 700;
+      font-size: 1.1rem; letter-spacing: -0.01em;
+      color: var(--text); transition: color var(--transition);
+    }
+    #mode-tagline {
+      font-size: 0.78rem; color: var(--text-2);
+      font-weight: 300;
+    }
+    .mode-info-right { text-align: right; }
+    #mode-band {
+      font-family: var(--font-mono); font-size: 0.72rem;
+      color: var(--mode-color); transition: color var(--transition);
+      font-weight: 700;
+    }
+    #mode-hz {
+      font-family: var(--font-mono); font-size: 0.62rem;
+      color: var(--text-3); margin-top: 2px;
+    }
+
+    /* ─── Mode Grid ─────────────────────────────────────────────── */
+    .modes-label {
+      font-family: var(--font-mono); font-size: 0.6rem;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--text-3); margin-bottom: 12px;
+    }
+
+    #modes-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .mode-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 14px 12px;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex; flex-direction: column; gap: 6px;
+      position: relative; overflow: hidden;
+      user-select: none;
+    }
+    .mode-card::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, var(--card-color) 0%, transparent 60%);
+      opacity: 0; border-radius: inherit;
+      transition: opacity 0.3s;
+    }
+    .mode-card:hover { border-color: var(--border-2); transform: translateY(-1px); }
+    .mode-card:hover::before { opacity: 0.04; }
+    .mode-card.active {
+      border-color: var(--card-color);
+      box-shadow: 0 0 0 1px var(--card-color), 0 0 20px -4px var(--card-color);
+      transform: translateY(-2px);
+    }
+    .mode-card.active::before { opacity: 0.07; }
+
+    .card-emoji {
+      font-size: 1.1rem; line-height: 1;
+      color: var(--card-color); transition: color var(--transition);
+    }
+    .card-name {
+      font-family: var(--font-head); font-weight: 700;
+      font-size: 0.82rem; color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .card-tagline {
+      font-size: 0.68rem; color: var(--text-2);
+      font-weight: 300; line-height: 1.3;
+    }
+    .card-hz {
+      font-family: var(--font-mono); font-size: 0.58rem;
+      color: var(--text-3); margin-top: auto;
+    }
+
+    /* ─── Controls ──────────────────────────────────────────────── */
+    .controls {
+      display: flex; align-items: center;
+      gap: 24px; justify-content: center;
+      margin-bottom: 32px;
+    }
+
+    #play-btn {
+      width: 72px; height: 72px; border-radius: 50%;
+      background: var(--surface-2);
+      border: 2px solid var(--border-2);
+      cursor: pointer; position: relative;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s;
+      flex-shrink: 0;
+    }
+    #play-btn:hover { border-color: var(--mode-color); transform: scale(1.05); }
+    #play-btn.playing {
+      border-color: var(--mode-color);
+      box-shadow: 0 0 0 6px rgba(74,143,255,0.08), 0 0 30px -6px var(--mode-color);
+      animation: play-pulse 2.5s ease-in-out infinite;
+    }
+    @keyframes play-pulse {
+      0%, 100% { box-shadow: 0 0 0 6px rgba(74,143,255,0.08), 0 0 30px -6px var(--mode-color); }
+      50%       { box-shadow: 0 0 0 12px rgba(74,143,255,0.04), 0 0 40px -4px var(--mode-color); }
+    }
+    #play-icon { width: 28px; height: 28px; transition: all 0.2s; }
+
+    .slider-group {
+      display: flex; flex-direction: column; gap: 7px; flex: 1; max-width: 160px;
+    }
+    .slider-label {
+      display: flex; justify-content: space-between;
+      font-family: var(--font-mono); font-size: 0.6rem;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--text-3);
+    }
+    .slider-label span { color: var(--text-2); }
+
+    input[type=range] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 3px;
+      background: var(--surface-2);
+      border-radius: 2px; outline: none; cursor: pointer;
+      border: 1px solid var(--border);
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--mode-color);
+      box-shadow: 0 0 8px var(--mode-color);
+      transition: transform 0.15s, box-shadow 0.15s;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.25);
+      box-shadow: 0 0 14px var(--mode-color);
+    }
+    input[type=range]::-moz-range-thumb {
+      width: 14px; height: 14px; border-radius: 50%;
+      background: var(--mode-color); border: none;
+      box-shadow: 0 0 8px var(--mode-color); cursor: pointer;
+    }
+
+    /* ─── Pomodoro ──────────────────────────────────────────────── */
+    #pomo-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      animation: slide-up 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    @keyframes slide-up {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    #pomo-section.hidden { display: none; }
+
+    .pomo-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 24px;
+    }
+    .pomo-title {
+      font-family: var(--font-head); font-size: 0.85rem;
+      font-weight: 700; color: var(--text-2);
+      letter-spacing: 0.05em; text-transform: uppercase;
+    }
+    .pomo-sessions {
+      display: flex; gap: 6px;
+    }
+    .pomo-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--border-2); transition: background 0.3s;
+    }
+    .pomo-dot.done { background: var(--mode-color); }
+
+    .pomo-body {
+      display: flex; align-items: center; gap: 36px;
+    }
+
+    .pomo-ring-wrap {
+      position: relative; flex-shrink: 0;
+      width: 120px; height: 120px;
+    }
+    .pomo-ring-wrap svg { width: 120px; height: 120px; }
+    .pomo-track {
+      fill: none; stroke: var(--surface-2); stroke-width: 4;
+    }
+    #pomo-progress {
+      fill: none; stroke: var(--mode-color);
+      stroke-width: 4; stroke-linecap: round;
+      stroke-dasharray: 283; stroke-dashoffset: 0;
+      transform: rotate(-90deg); transform-origin: center;
+      transition: stroke-dashoffset 1s linear, stroke 0.5s ease;
+    }
+    .pomo-time-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+    }
+    #pomo-time {
+      font-family: var(--font-mono); font-size: 1.3rem;
+      font-weight: 700; color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    #pomo-phase-label {
+      font-family: var(--font-mono); font-size: 0.55rem;
+      color: var(--mode-color); letter-spacing: 0.1em;
+      text-transform: uppercase; margin-top: 2px;
+    }
+
+    .pomo-controls { flex: 1; }
+    .pomo-btns {
+      display: flex; gap: 8px; margin-bottom: 20px;
+    }
+    .pomo-btn {
+      flex: 1; padding: 10px 0;
+      background: var(--surface-2); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); color: var(--text-2);
+      font-family: var(--font-mono); font-size: 0.7rem;
+      letter-spacing: 0.06em; cursor: pointer;
+      transition: all 0.2s;
+    }
+    .pomo-btn:hover { border-color: var(--border-2); color: var(--text); }
+    .pomo-btn.primary { border-color: var(--mode-color); color: var(--mode-color); }
+    .pomo-btn.primary:hover { background: var(--mode-color); color: var(--bg); }
+
+    .pomo-settings { display: flex; flex-direction: column; gap: 8px; }
+    .pomo-setting {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px;
+    }
+    .pomo-setting-label {
+      font-family: var(--font-mono); font-size: 0.62rem;
+      color: var(--text-3); letter-spacing: 0.06em;
+      white-space: nowrap;
+    }
+    .pomo-setting input[type=range] { max-width: 120px; }
+
+    /* ─── Scrollbar ─────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 2px; }
+
+    /* ─── Responsive ────────────────────────────────────────────── */
+    @media (max-width: 640px) {
+      #modes-grid { grid-template-columns: repeat(2, 1fr); gap: 7px; }
+      .controls { gap: 16px; }
+      .pomo-body { flex-direction: column; align-items: center; }
+      header { padding: 20px 0 16px; }
+    }
+    @media (max-width: 400px) {
+      .mode-info { flex-direction: column; align-items: flex-start; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="bg-glow"></div>
+
+  <div id="app">
+
+    <!-- Header -->
+    <header>
+      <div class="logo">neu<span>r</span>o</div>
+      <div id="status-pill">
+        <div class="dot"></div>
+        <span id="status-text">idle</span>
+      </div>
+      <div class="header-btns">
+        <button class="icon-btn" id="pomo-toggle-btn" title="Pomodoro Timer">timer</button>
+      </div>
+    </header>
+
+    <!-- Waveform Visualizer -->
+    <div class="viz-section">
+      <canvas id="waveform"></canvas>
+    </div>
+
+    <!-- Mode Info Bar -->
+    <div class="mode-info">
+      <div class="mode-info-left">
+        <div id="mode-name">—</div>
+        <div id="mode-tagline">select a mode to begin</div>
+      </div>
+      <div class="mode-info-right">
+        <div id="mode-band"></div>
+        <div id="mode-hz"></div>
+      </div>
+    </div>
+
+    <!-- Mode Grid -->
+    <div class="modes-label">Modes</div>
+    <div id="modes-grid"></div>
+
+    <!-- Controls -->
+    <div class="controls">
+      <div class="slider-group">
+        <div class="slider-label">Volume <span id="vol-val">80%</span></div>
+        <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.8">
+      </div>
+
+      <button id="play-btn" title="Play / Pause">
+        <svg id="play-icon" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Play icon -->
+          <path id="icon-path" d="M8 5.5L22 14L8 22.5V5.5Z" fill="var(--text)" stroke="none"/>
+        </svg>
+      </button>
+
+      <div class="slider-group">
+        <div class="slider-label">Intensity <span id="int-val">50%</span></div>
+        <input type="range" id="intensity-slider" min="0" max="1" step="0.01" value="0.5">
+      </div>
+    </div>
+
+    <!-- Pomodoro Panel -->
+    <div id="pomo-section" class="hidden">
+      <div class="pomo-header">
+        <div class="pomo-title">Pomodoro</div>
+        <div class="pomo-sessions" id="pomo-dots"></div>
+      </div>
+      <div class="pomo-body">
+        <div class="pomo-ring-wrap">
+          <svg viewBox="0 0 100 100">
+            <circle class="pomo-track" cx="50" cy="50" r="45"/>
+            <circle id="pomo-progress" cx="50" cy="50" r="45"
+              style="stroke-dasharray: 282.7; stroke-dashoffset: 0;"/>
+          </svg>
+          <div class="pomo-time-center">
+            <div id="pomo-time">25:00</div>
+            <div id="pomo-phase-label">work</div>
+          </div>
+        </div>
+
+        <div class="pomo-controls">
+          <div class="pomo-btns">
+            <button class="pomo-btn primary" id="pomo-start">Start</button>
+            <button class="pomo-btn" id="pomo-reset">Reset</button>
+          </div>
+          <div class="pomo-settings">
+            <div class="pomo-setting">
+              <span class="pomo-setting-label">Work <span id="pomo-work-val">25</span>m</span>
+              <input type="range" id="pomo-work" min="5" max="60" step="5" value="25">
+            </div>
+            <div class="pomo-setting">
+              <span class="pomo-setting-label">Break <span id="pomo-break-val">5</span>m</span>
+              <input type="range" id="pomo-break" min="1" max="30" step="1" value="5">
+            </div>
+            <div class="pomo-setting">
+              <span class="pomo-setting-label">Long Break <span id="pomo-long-val">15</span>m</span>
+              <input type="range" id="pomo-long" min="5" max="60" step="5" value="15">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- #app -->
+
+  <script>
+    // ─── Data from server ────────────────────────────────────────────────
+    const MODES = {{ modes_json | safe }};
+    const CHUNK_DURATION = {{ chunk_duration }};
+
+    // ─── State ───────────────────────────────────────────────────────────
+    let activeMode = null;
+    let isPlaying  = false;
+    let volume     = 0.8;
+    let intensity  = 0.5;
+
+    // ─── Helpers ─────────────────────────────────────────────────────────
+    function hexToRgba(hex, alpha) {
+      const r = parseInt(hex.slice(1,3),16);
+      const g = parseInt(hex.slice(3,5),16);
+      const b = parseInt(hex.slice(5,7),16);
+      return `rgba(${r},${g},${b},${alpha})`;
+    }
+
+    function setModeColor(color) {
+      document.documentElement.style.setProperty('--mode-color', color);
+    }
+
+    function formatTime(seconds) {
+      const m = Math.floor(seconds / 60).toString().padStart(2,'0');
+      const s = (seconds % 60).toString().padStart(2,'0');
+      return `${m}:${s}`;
+    }
+
+    // ─── Audio Engine ─────────────────────────────────────────────────────
+    class NeuroAudioEngine {
+      constructor() {
+        this.ctx          = null;
+        this.analyser     = null;
+        this.masterGain   = null;
+        this.sources      = [];
+        this.isPlaying    = false;
+        this.mode         = null;
+        this.intensity    = 0.5;
+        this.volume       = 0.8;
+        this.nextStart    = 0;
+        this.chunkOffset  = 0;
+        this.genId        = 0;
+        this.schedTimer   = null;
+        this.LOOKAHEAD    = 3; // seconds
+      }
+
+      async _ensureCtx() {
+        if (!this.ctx) {
+          this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+          this.analyser = this.ctx.createAnalyser();
+          this.analyser.fftSize = 2048;
+          this.analyser.smoothingTimeConstant = 0.85;
+          this.masterGain = this.ctx.createGain();
+          this.masterGain.gain.value = this.volume;
+          this.masterGain.connect(this.analyser);
+          this.analyser.connect(this.ctx.destination);
+        }
+        if (this.ctx.state === 'suspended') await this.ctx.resume();
+      }
+
+      _clearSources(genId) {
+        this.genId = genId;
+        this.sources.forEach(s => { try { s.stop(0); } catch(e) {} });
+        this.sources = [];
+        if (this.schedTimer) { clearInterval(this.schedTimer); this.schedTimer = null; }
+      }
+
+      async _fetchChunk(genId, offset) {
+        if (genId !== this.genId) return null;
+        const url = `/chunk/${this.mode}?t=${offset}&intensity=${this.intensity}`;
+        try {
+          const resp = await fetch(url);
+          if (!resp.ok) return null;
+          if (genId !== this.genId) return null;
+          const ab  = await resp.arrayBuffer();
+          if (genId !== this.genId) return null;
+          return await this.ctx.decodeAudioData(ab);
+        } catch(e) { console.warn('Chunk fetch error:', e); return null; }
+      }
+
+      async _schedule(genId, offset) {
+        const buf = await this._fetchChunk(genId, offset);
+        if (!buf || genId !== this.genId) return;
+
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        src.connect(this.masterGain);
+        src.onended = () => { this.sources = this.sources.filter(s => s !== src); };
+
+        const now = this.ctx.currentTime;
+        const at  = Math.max(this.nextStart, now + 0.05);
+        src.start(at);
+        this.nextStart = at + buf.duration;
+        this.chunkOffset = offset + CHUNK_DURATION;
+        this.sources.push(src);
+      }
+
+      _startScheduler(genId) {
+        this.schedTimer = setInterval(async () => {
+          if (genId !== this.genId || !this.isPlaying) return;
+          const timeUntil = this.nextStart - this.ctx.currentTime;
+          if (timeUntil < this.LOOKAHEAD) {
+            await this._schedule(genId, this.chunkOffset);
+          }
+        }, 700);
+      }
+
+      async play(mode, newIntensity = null) {
+        await this._ensureCtx();
+        if (newIntensity !== null) this.intensity = newIntensity;
+        this.mode = mode;
+        this.isPlaying = true;
+
+        const genId = ++this.genId;
+        this._clearSources(genId);
+        this.nextStart   = this.ctx.currentTime + 0.12;
+        this.chunkOffset = 0;
+
+        // Pre-buffer 2 chunks for seamless start
+        await this._schedule(genId, 0);
+        await this._schedule(genId, CHUNK_DURATION);
+        if (genId === this.genId) this._startScheduler(genId);
+      }
+
+      stop() {
+        this.isPlaying = false;
+        this._clearSources(this.genId + 1);
+        if (this.masterGain && this.ctx) {
+          const t = this.ctx.currentTime;
+          this.masterGain.gain.setTargetAtTime(0, t, 0.15);
+          setTimeout(() => {
+            if (this.masterGain) this.masterGain.gain.value = this.volume;
+          }, 600);
+        }
+      }
+
+      setVolume(v) {
+        this.volume = v;
+        if (this.masterGain && this.ctx) {
+          this.masterGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05);
+        }
+      }
+
+      async setIntensity(v) {
+        this.intensity = v;
+        if (this.isPlaying && this.mode) {
+          await this.play(this.mode); // Restart with new intensity
+        }
+      }
+
+      getWaveformData() {
+        if (!this.analyser) return null;
+        const d = new Uint8Array(this.analyser.frequencyBinCount);
+        this.analyser.getByteTimeDomainData(d);
+        return d;
+      }
+    }
+
+    const engine = new NeuroAudioEngine();
+
+    // ─── Build Mode Grid ──────────────────────────────────────────────────
+    function buildModeGrid() {
+      const grid = document.getElementById('modes-grid');
+      Object.entries(MODES).forEach(([key, mode]) => {
+        const card = document.createElement('div');
+        card.className = 'mode-card';
+        card.dataset.mode = key;
+        card.style.setProperty('--card-color', mode.color);
+        card.innerHTML = `
+          <div class="card-emoji">${mode.emoji}</div>
+          <div class="card-name">${mode.name}</div>
+          <div class="card-tagline">${mode.tagline}</div>
+          <div class="card-hz">${mode.entrainment_hz} Hz · ${mode.band_name}</div>
+        `;
+        card.addEventListener('click', () => selectMode(key));
+        grid.appendChild(card);
+      });
+    }
+
+    // ─── Mode Selection ───────────────────────────────────────────────────
+    function selectMode(key) {
+      activeMode = key;
+      const mode = MODES[key];
+
+      // Update card active states
+      document.querySelectorAll('.mode-card').forEach(c => {
+        c.classList.toggle('active', c.dataset.mode === key);
+      });
+
+      // Update mode info bar
+      document.getElementById('mode-name').textContent    = mode.name;
+      document.getElementById('mode-tagline').textContent = mode.tagline;
+      document.getElementById('mode-band').textContent    = `${mode.band} · ${mode.band_name}`;
+      document.getElementById('mode-hz').textContent      = `${mode.entrainment_hz} Hz AM modulation`;
+
+      // Update color system
+      setModeColor(mode.color);
+
+      // If playing, switch to new mode
+      if (isPlaying) startAudio();
+    }
+
+    // ─── Playback ─────────────────────────────────────────────────────────
+    async function startAudio() {
+      if (!activeMode) {
+        // Default to focus if nothing selected
+        selectMode('focus');
+        return;
+      }
+      await engine.play(activeMode, intensity);
+    }
+
+    function stopAudio() {
+      engine.stop();
+    }
+
+    function togglePlay() {
+      if (!activeMode) { selectMode('focus'); }
+      isPlaying = !isPlaying;
+      updatePlayBtn();
+      updateStatusPill();
+      if (isPlaying) {
+        startAudio();
+      } else {
+        stopAudio();
+        if (pomo.active) pomoStop();
+      }
+    }
+
+    function updatePlayBtn() {
+      const btn = document.getElementById('play-btn');
+      const path = document.getElementById('icon-path');
+      btn.classList.toggle('playing', isPlaying);
+      if (isPlaying) {
+        // Pause icon
+        path.setAttribute('d', 'M7 5H11V23H7V5ZM17 5H21V23H17V5Z');
+        path.setAttribute('fill', 'var(--mode-color)');
+      } else {
+        // Play icon
+        path.setAttribute('d', 'M8 5.5L22 14L8 22.5V5.5Z');
+        path.setAttribute('fill', 'var(--text)');
+      }
+    }
+
+    function updateStatusPill() {
+      const pill = document.getElementById('status-pill');
+      const txt  = document.getElementById('status-text');
+      pill.classList.toggle('playing', isPlaying);
+      if (isPlaying && activeMode) {
+        txt.textContent = MODES[activeMode].name.toLowerCase();
+      } else {
+        txt.textContent = 'idle';
+      }
+    }
+
+    // ─── Sliders ──────────────────────────────────────────────────────────
+    let intensityDebounce;
+
+    document.getElementById('volume-slider').addEventListener('input', e => {
+      volume = parseFloat(e.target.value);
+      engine.setVolume(volume);
+      document.getElementById('vol-val').textContent = Math.round(volume * 100) + '%';
+    });
+
+    document.getElementById('intensity-slider').addEventListener('input', e => {
+      intensity = parseFloat(e.target.value);
+      document.getElementById('int-val').textContent = Math.round(intensity * 100) + '%';
+      clearTimeout(intensityDebounce);
+      intensityDebounce = setTimeout(() => { engine.setIntensity(intensity); }, 600);
+    });
+
+    document.getElementById('play-btn').addEventListener('click', togglePlay);
+
+    // ─── Waveform Canvas ──────────────────────────────────────────────────
+    const canvas = document.getElementById('waveform');
+    const ctx2d  = canvas.getContext('2d');
+    let animT = 0;
+
+    function resizeCanvas() {
+      const rect = canvas.parentElement.getBoundingClientRect();
+      canvas.width  = rect.width  * window.devicePixelRatio;
+      canvas.height = 130 * window.devicePixelRatio;
+      canvas.style.width  = rect.width + 'px';
+      canvas.style.height = '130px';
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    function drawWave(ts) {
+      animT = ts;
+      const w = canvas.width;
+      const h = canvas.height;
+      const color = getComputedStyle(document.documentElement)
+                      .getPropertyValue('--mode-color').trim() || '#4a8fff';
+
+      ctx2d.clearRect(0, 0, w, h);
+
+      const waveData = engine.getWaveformData();
+
+      // Draw in 4 passes for glow
+      const passes = [
+        { lw: 6 * window.devicePixelRatio, alpha: 0.05 },
+        { lw: 3 * window.devicePixelRatio, alpha: 0.15 },
+        { lw: 1.5 * window.devicePixelRatio, alpha: 0.45 },
+        { lw: 0.8 * window.devicePixelRatio, alpha: 0.9 },
+      ];
+
+      passes.forEach(({ lw, alpha }) => {
+        ctx2d.beginPath();
+        ctx2d.lineWidth   = lw;
+        ctx2d.strokeStyle = hexToRgba(color, alpha);
+        ctx2d.lineJoin    = 'round';
+        ctx2d.lineCap     = 'round';
+
+        if (waveData && isPlaying) {
+          // Real analyser waveform
+          const step = w / waveData.length;
+          for (let i = 0; i < waveData.length; i++) {
+            const v = waveData[i] / 128.0 - 1.0;
+            const x = i * step;
+            const y = h / 2 + v * h * 0.32;
+            i === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+          }
+        } else {
+          // Idle: gentle animated sine wave
+          const hz = activeMode ? Math.min(MODES[activeMode].entrainment_hz, 6) * 0.35 : 0.5;
+          const amp = isPlaying ? 22 : 10;
+          for (let x = 0; x <= w; x += 2) {
+            const phase  = (x / w) * Math.PI * 8;
+            const tPhase = (ts * 0.001) * Math.PI * 2 * hz;
+            const y = h / 2 + Math.sin(phase + tPhase) * amp * window.devicePixelRatio;
+            x === 0 ? ctx2d.moveTo(x, y) : ctx2d.lineTo(x, y);
+          }
+        }
+        ctx2d.stroke();
+      });
+
+      requestAnimationFrame(drawWave);
+    }
+    requestAnimationFrame(drawWave);
+
+    // ─── Pomodoro ─────────────────────────────────────────────────────────
+    const pomo = {
+      active:    false,
+      running:   false,
+      phase:     'work',    // 'work' | 'break' | 'longbreak'
+      elapsed:   0,
+      sessions:  0,
+      timer:     null,
+      workDur:   25 * 60,
+      breakDur:  5  * 60,
+      longDur:   15 * 60,
+    };
+
+    const CIRCUMFERENCE = 2 * Math.PI * 45; // r=45
+
+    function pomoCurrentDuration() {
+      return pomo.phase === 'work' ? pomo.workDur
+           : pomo.phase === 'break' ? pomo.breakDur
+           : pomo.longDur;
+    }
+
+    function pomoUpdateUI() {
+      const dur      = pomoCurrentDuration();
+      const remaining = dur - pomo.elapsed;
+      const progress = pomo.elapsed / dur;
+
+      document.getElementById('pomo-time').textContent       = formatTime(remaining);
+      document.getElementById('pomo-phase-label').textContent = pomo.phase === 'work' ? 'work' : 'rest';
+
+      const offset = CIRCUMFERENCE * (1 - progress);
+      document.getElementById('pomo-progress').style.strokeDashoffset = offset;
+
+      // Session dots (show up to 4)
+      const dots = document.getElementById('pomo-dots');
+      dots.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+        const d = document.createElement('div');
+        d.className = 'pomo-dot' + (i < pomo.sessions % 4 ? ' done' : '');
+        dots.appendChild(d);
+      }
+    }
+
+    function pomoTick() {
+      pomo.elapsed++;
+      const dur = pomoCurrentDuration();
+      if (pomo.elapsed >= dur) {
+        pomoAdvance();
+      } else {
+        pomoUpdateUI();
+      }
+    }
+
+    function pomoAdvance() {
+      if (pomo.phase === 'work') {
+        pomo.sessions++;
+        pomo.elapsed = 0;
+        pomo.phase = (pomo.sessions % 4 === 0) ? 'longbreak' : 'break';
+        // Switch audio to rest mode
+        if (isPlaying) {
+          engine.play(pomo.phase === 'longbreak' ? 'meditate' : 'relax', intensity);
+          updateStatusPill();
+        }
+        pomoNotify('Rest time! Take a break.');
+      } else {
+        pomo.elapsed = 0;
+        pomo.phase   = 'work';
+        // Switch back to work mode
+        if (isPlaying && activeMode) {
+          engine.play(activeMode, intensity);
+          updateStatusPill();
+        }
+        pomoNotify('Back to work!');
+      }
+      pomoUpdateUI();
+    }
+
+    function pomoStart() {
+      if (pomo.running) {
+        // Pause
+        clearInterval(pomo.timer);
+        pomo.running = false;
+        document.getElementById('pomo-start').textContent = 'Resume';
+      } else {
+        // Start / Resume
+        if (!isPlaying) togglePlay();
+        pomo.running = true;
+        pomo.timer = setInterval(pomoTick, 1000);
+        document.getElementById('pomo-start').textContent = 'Pause';
+      }
+    }
+
+    function pomoStop() {
+      clearInterval(pomo.timer);
+      pomo.running = false;
+    }
+
+    function pomoReset() {
+      pomoStop();
+      pomo.elapsed  = 0;
+      pomo.phase    = 'work';
+      pomo.sessions = 0;
+      document.getElementById('pomo-start').textContent = 'Start';
+      pomoUpdateUI();
+      // Restore original mode
+      if (isPlaying && activeMode) engine.play(activeMode, intensity);
+    }
+
+    function pomoNotify(msg) {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('neuro', { body: msg, icon: '' });
+      }
+    }
+
+    document.getElementById('pomo-start').addEventListener('click', pomoStart);
+    document.getElementById('pomo-reset').addEventListener('click', pomoReset);
+
+    // Pomodoro settings sliders
+    ['work','break','long'].forEach(type => {
+      const el = document.getElementById(`pomo-${type}`);
+      el.addEventListener('input', () => {
+        const v = parseInt(el.value);
+        document.getElementById(`pomo-${type}-val`).textContent = v;
+        if (type === 'work')  pomo.workDur  = v * 60;
+        if (type === 'break') pomo.breakDur = v * 60;
+        if (type === 'long')  pomo.longDur  = v * 60;
+        if (!pomo.running) { pomo.elapsed = 0; pomoUpdateUI(); }
+      });
+    });
+
+    // Timer toggle
+    document.getElementById('pomo-toggle-btn').addEventListener('click', () => {
+      const sec = document.getElementById('pomo-section');
+      const btn = document.getElementById('pomo-toggle-btn');
+      const hidden = sec.classList.toggle('hidden');
+      btn.classList.toggle('active', !hidden);
+      if (!hidden) pomoUpdateUI();
+      if (hidden && pomo.running) pomoStop();
+    });
+
+    // Request notification permission on timer open
+    document.getElementById('pomo-toggle-btn').addEventListener('click', () => {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    });
+
+    // ─── Init ─────────────────────────────────────────────────────────────
+    buildModeGrid();
+    pomoUpdateUI();
+  </script>
+</body>
+</html>
