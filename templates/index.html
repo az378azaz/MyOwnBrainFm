@@ -195,11 +195,44 @@
     .pset input[type=range]{max-width:96px}
 
     @media(max-width:600px){
-      #ui{padding:18px 18px 20px}
-      #player{gap:12px;padding:14px 16px}
-      #play{width:50px;height:50px}
-      #pomo{width:calc(100vw - 36px);right:18px;bottom:106px}
-      #ambience{font-size:1.6rem;letter-spacing:0.3em}
+      #ui{padding:16px 16px 20px}
+
+      /* Header — hide pill on mobile, keep logo + timer */
+      #pill{display:none}
+      .logo{font-size:1.2rem}
+      #timer-btn{padding:7px 12px;font-size:0.75rem}
+
+      /* Center label */
+      #ambience{font-size:1.2rem;letter-spacing:0.25em}
+
+      /* Dots — smaller */
+      #dots{gap:5px;margin-bottom:14px}
+      .dot-btn{width:4px;height:4px}
+      .dot-btn.on{width:14px}
+
+      /* Player bar — compact */
+      #player{
+        gap:10px;padding:12px 14px;border-radius:16px;
+        flex-wrap:nowrap;
+      }
+      .ctrl{width:34px;height:34px}
+      .ctrl svg{width:13px;height:13px}
+      #play{width:48px;height:48px}
+      #play svg{width:20px;height:20px}
+      .divider{height:30px}
+      .vol-label{font-size:0.58rem}
+
+      /* Pomodoro — full width, anchored to bottom */
+      #pomo{
+        width:calc(100vw - 32px);
+        right:16px;left:16px;
+        bottom:100px;
+        padding:18px;
+      }
+      .pb{gap:14px}
+      .pr{width:80px;height:80px}
+      .pr svg{width:80px;height:80px}
+      #pt{font-size:0.9rem}
     }
   </style>
 </head>
@@ -369,6 +402,8 @@ function initGL() {
 
 document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
 document.addEventListener('mouseleave', () => { mx = -1; my = -1; });
+// Disable spotlight on touch devices
+if ('ontouchstart' in window) document.getElementById('spotlight').style.display = 'none';
 initGL();
 
 // ── Slides ───────────────────────────────────────────────────
