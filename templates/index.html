@@ -4,513 +4,500 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MyBrainFM</title>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@300;400;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,300&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#06060f;--surface:rgba(8,8,20,0.85);--border:rgba(255,255,255,0.10);
-      --border-2:rgba(255,255,255,0.20);--text:#e8eaf6;--text-2:#8890c0;--text-3:#30305a;
-      --accent:#4a8fff;--accent-glow:rgba(74,143,255,0.22);
-      --font:'Nunito',sans-serif;--font-mono:'Space Mono',monospace;--r:16px;--r-sm:10px;
+      --accent:#4a8fff;
+      --accent-2:#7c4dff;
+      --glow:rgba(74,143,255,0.25);
+      --surface:rgba(6,6,18,0.75);
+      --surface-2:rgba(255,255,255,0.06);
+      --border:rgba(255,255,255,0.09);
+      --border-h:rgba(255,255,255,0.18);
+      --text:#eceef8;
+      --text-2:rgba(255,255,255,0.45);
+      --font:'Nunito',sans-serif;
+      --mono:'Space Mono',monospace;
     }
-    html,body{width:100%;height:100%;overflow:hidden}
-    body{background:var(--bg);color:var(--text);font-family:var(--font);position:relative}
+    html,body{width:100%;height:100%;overflow:hidden;background:#04040e}
+    body{font-family:var(--font);color:var(--text)}
 
-    /* ── YouTube hidden player ── */
-    #yt-container{
-      position:fixed;bottom:-9999px;left:-9999px;
-      width:1px;height:1px;pointer-events:none;z-index:-1;
-    }
+    /* ─── YouTube hidden ─────────────────────────── */
+    #yt{position:fixed;width:1px;height:1px;top:-9999px;left:-9999px;pointer-events:none;z-index:-1}
 
-    /* ── Background slides ── */
-    #bg-container{position:fixed;inset:0;z-index:0;overflow:hidden}
-    .bg-slide{
+    /* ─── Background ─────────────────────────────── */
+    #bg{position:fixed;inset:0;z-index:0}
+    .slide{
       position:absolute;inset:0;background-size:cover;background-position:center;
-      opacity:0;transition:opacity 2.5s ease-in-out;
-      animation:ken-burns 90s ease-in-out infinite alternate;
+      opacity:0;transition:opacity 3s cubic-bezier(0.4,0,0.2,1);
+      transform:translateZ(0);backface-visibility:hidden;
     }
-    .bg-slide.active{opacity:1}
-    @keyframes ken-burns{
-      from{transform:scale(1.0) translate(0%,0%)}
-      to{transform:scale(1.10) translate(-2%,-1.5%)}
-    }
-    #bg-overlay{
+    .slide.on{opacity:1;animation:kb 160s ease-in-out infinite alternate}
+    @keyframes kb{from{transform:translate(0%,0%)}to{transform:translate(-0.6%,-0.3%)}}
+
+    /* Cinematic gradient overlays */
+    #vignette{
       position:fixed;inset:0;z-index:1;pointer-events:none;
-      background:linear-gradient(to bottom,rgba(6,6,15,0.45) 0%,rgba(6,6,15,0.08) 40%,rgba(6,6,15,0.65) 100%)
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 120%, rgba(4,4,14,0.85) 0%, transparent 70%),
+        radial-gradient(ellipse 100% 40% at 50% 0%, rgba(4,4,14,0.6) 0%, transparent 60%),
+        radial-gradient(ellipse at 0% 50%, rgba(74,143,255,0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 100% 50%, rgba(124,77,255,0.04) 0%, transparent 50%);
     }
 
-    /* ── Ripple canvas ── */
-    #ripple-canvas{position:fixed;inset:0;z-index:2;pointer-events:none}
+    /* ─── WebGL Spotlight Canvas ─────────────────── */
+    #spotlight{position:fixed;inset:0;z-index:2;pointer-events:none;mix-blend-mode:screen;opacity:0.6}
 
-    /* ── UI ── */
-    #ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;justify-content:space-between;padding:24px 28px 28px;pointer-events:none}
+    /* ─── UI Layer ───────────────────────────────── */
+    #ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;justify-content:space-between;padding:28px 32px 32px;pointer-events:none}
 
-    /* Header */
-    #header{display:flex;align-items:center;justify-content:space-between;pointer-events:all}
-    .logo{font-weight:900;font-size:1.5rem;letter-spacing:-0.02em;color:var(--text);text-shadow:0 2px 20px rgba(0,0,0,0.9)}
-    .logo em{font-style:normal;color:var(--accent)}
-    #status-pill{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-2);background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:100px;padding:6px 14px;transition:all .4s;max-width:260px;overflow:hidden}
-    #status-pill .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--text-3);transition:background .3s,box-shadow .3s}
-    #status-pill.playing .dot{background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse-dot 1.8s ease-in-out infinite}
-    #status-pill.playing{color:var(--text);border-color:var(--border-2)}
-    #status-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.3}}
-    .icon-btn{background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 16px;color:var(--text-2);font-family:var(--font);font-size:0.8rem;font-weight:700;cursor:pointer;transition:all .2s}
-    .icon-btn:hover{border-color:var(--border-2);color:var(--text)}
-    .icon-btn.active{border-color:var(--accent);color:var(--accent)}
+    /* ─── Header ─────────────────────────────────── */
+    #top{display:flex;align-items:center;justify-content:space-between;pointer-events:all;animation:fade-down 1s 0.2s both}
+    @keyframes fade-down{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:none}}
 
-    /* Image dots */
-    #img-dots{display:flex;gap:6px;justify-content:center;pointer-events:all}
-    .img-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);cursor:pointer;transition:all .3s;border:none;padding:0}
-    .img-dot.active{background:var(--accent);box-shadow:0 0 8px var(--accent);width:20px;border-radius:3px}
-    .img-dot:hover{background:rgba(255,255,255,0.6)}
+    .logo{font-weight:900;font-size:1.4rem;letter-spacing:-0.025em;color:var(--text)}
+    .logo b{color:var(--accent);font-weight:900}
 
-    /* Track info */
-    #track-info{
-      display:flex;flex-direction:column;align-items:center;gap:4px;
-      opacity:0;transition:opacity .5s;pointer-events:none;
+    #pill{
+      display:flex;align-items:center;gap:8px;
+      font-family:var(--mono);font-size:0.58rem;letter-spacing:0.12em;text-transform:uppercase;
+      color:var(--text-2);background:var(--surface);
+      backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--border);border-radius:100px;padding:6px 14px;
+      transition:all 0.4s;
     }
-    #track-info.visible{opacity:1}
-    #track-title{font-weight:800;font-size:0.95rem;color:var(--text);text-shadow:0 2px 12px rgba(0,0,0,0.9);text-align:center;max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    #track-channel{font-size:0.72rem;color:var(--text-2);font-weight:600}
+    #pill .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.2);flex-shrink:0;transition:all 0.3s}
+    #pill.on .dot{background:var(--accent);box-shadow:0 0 8px var(--accent);animation:blink 2s infinite}
+    #pill.on{color:var(--text);border-color:rgba(74,143,255,0.3)}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:0.35}}
 
-    /* Player bar */
-    #player-bar{display:flex;align-items:center;gap:16px;background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;pointer-events:all}
+    #timer-btn{
+      background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+      border:1px solid var(--border);border-radius:10px;
+      padding:8px 18px;color:var(--text-2);font-family:var(--font);font-size:0.8rem;font-weight:700;
+      cursor:pointer;transition:all 0.2s;letter-spacing:0.02em;
+    }
+    #timer-btn:hover{border-color:var(--border-h);color:var(--text)}
+    #timer-btn.on{border-color:var(--accent);color:var(--accent)}
 
-    /* Track controls */
-    .track-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.07);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;color:var(--text-2)}
-    .track-btn:hover{background:rgba(255,255,255,0.12);color:var(--text);border-color:var(--border-2)}
-    .track-btn svg{width:14px;height:14px}
+    /* ─── Center Label ───────────────────────────── */
+    #center{display:flex;align-items:center;justify-content:center;flex:1;pointer-events:none}
+    #ambience{
+      font-weight:200;font-size:clamp(2rem,5vw,4rem);
+      letter-spacing:0.5em;text-transform:uppercase;
+      color:rgba(255,255,255,0.10);text-indent:0.5em;
+      animation:fade-in 2s 0.8s both;user-select:none;
+    }
+    @keyframes fade-in{from{opacity:0}to{opacity:1}}
+
+    /* ─── Slide dots ─────────────────────────────── */
+    #dots{display:flex;gap:7px;justify-content:center;pointer-events:all;margin-bottom:20px;animation:fade-up 1s 0.6s both}
+    @keyframes fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    .dot-btn{width:5px;height:5px;border-radius:50%;background:rgba(255,255,255,0.25);border:none;cursor:pointer;padding:0;transition:all 0.3s}
+    .dot-btn.on{background:var(--accent);box-shadow:0 0 8px var(--accent);width:18px;border-radius:3px}
+    .dot-btn:hover{background:rgba(255,255,255,0.55)}
+
+    /* ─── Player Bar ─────────────────────────────── */
+    #player{
+      display:flex;align-items:center;gap:20px;
+      background:var(--surface);
+      backdrop-filter:blur(28px) saturate(180%);-webkit-backdrop-filter:blur(28px) saturate(180%);
+      border:1px solid var(--border);
+      border-top:1px solid rgba(255,255,255,0.13);
+      border-radius:20px;padding:16px 24px;
+      pointer-events:all;
+      animation:fade-up 1s 0.4s both;
+      box-shadow:0 -4px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.07);
+    }
+
+    /* Control buttons */
+    .ctrl{
+      width:38px;height:38px;border-radius:50%;
+      background:var(--surface-2);border:1px solid var(--border);
+      cursor:pointer;display:flex;align-items:center;justify-content:center;
+      flex-shrink:0;color:var(--text-2);transition:all 0.2s;
+    }
+    .ctrl:hover{background:rgba(255,255,255,0.1);color:var(--text);border-color:var(--border-h)}
+    .ctrl svg{width:15px;height:15px}
 
     /* Play button */
-    #play-btn{width:56px;height:56px;border-radius:50%;flex-shrink:0;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;box-shadow:0 0 20px var(--accent-glow)}
-    #play-btn:hover{transform:scale(1.08);box-shadow:0 0 34px var(--accent-glow)}
-    #play-btn.playing{box-shadow:0 0 0 6px var(--accent-glow),0 0 30px var(--accent-glow);animation:play-ring 2.5s ease-in-out infinite}
-    @keyframes play-ring{0%,100%{box-shadow:0 0 0 6px var(--accent-glow),0 0 30px var(--accent-glow)}50%{box-shadow:0 0 0 12px rgba(74,143,255,0.08),0 0 40px var(--accent-glow)}}
+    #play{
+      width:60px;height:60px;border-radius:50%;flex-shrink:0;
+      background:linear-gradient(135deg,var(--accent),var(--accent-2));
+      border:none;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      transition:all 0.25s;
+      box-shadow:0 0 24px var(--glow), 0 4px 16px rgba(0,0,0,0.4);
+    }
+    #play:hover{transform:scale(1.08);box-shadow:0 0 36px var(--glow),0 0 60px rgba(74,143,255,0.15)}
+    #play.on{animation:pulse 2.5s ease-in-out infinite;box-shadow:0 0 30px var(--glow),0 0 60px rgba(74,143,255,0.12)}
+    @keyframes pulse{
+      0%,100%{box-shadow:0 0 30px var(--glow),0 0 60px rgba(74,143,255,0.12)}
+      50%{box-shadow:0 0 45px var(--glow),0 0 80px rgba(74,143,255,0.2)}
+    }
 
-    /* Sliders */
-    .slider-group{display:flex;flex-direction:column;gap:6px;flex:1}
-    .slider-label{display:flex;justify-content:space-between;font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-2)}
-    .slider-label span{color:var(--text)}
-    input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;outline:none;cursor:pointer}
-    input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);cursor:pointer;transition:transform .15s}
-    input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
-    input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:none;box-shadow:0 0 8px var(--accent)}
-    .bar-divider{width:1px;height:40px;background:var(--border);flex-shrink:0}
+    /* Volume */
+    .vol-group{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
+    .vol-label{display:flex;justify-content:space-between;font-size:0.62rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-2)}
+    .vol-label span{color:var(--text)}
 
-    /* Pomodoro */
-    #pomo-panel{position:fixed;bottom:120px;right:28px;z-index:20;background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--r);padding:22px;width:300px;animation:slide-up .3s cubic-bezier(.4,0,.2,1)}
-    #pomo-panel.hidden{display:none}
-    @keyframes slide-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
-    .pomo-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-    .pomo-title{font-weight:800;font-size:.82rem;color:var(--text-2);letter-spacing:.05em;text-transform:uppercase}
-    .pomo-sessions{display:flex;gap:5px}
-    .pomo-dot{width:7px;height:7px;border-radius:50%;background:var(--text-3);transition:background .3s}
-    .pomo-dot.done{background:var(--accent)}
-    .pomo-body{display:flex;align-items:center;gap:22px}
-    .pomo-ring-wrap{position:relative;flex-shrink:0;width:100px;height:100px}
-    .pomo-ring-wrap svg{width:100px;height:100px}
-    .pomo-track{fill:none;stroke:rgba(255,255,255,0.06);stroke-width:5}
-    #pomo-progress{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;stroke-dasharray:283;stroke-dashoffset:0;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s linear}
-    .pomo-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
-    #pomo-time{font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--text)}
-    #pomo-phase-label{font-size:.55rem;font-weight:800;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
-    .pomo-controls{flex:1}
-    .pomo-btns{display:flex;gap:7px;margin-bottom:14px}
-    .pomo-btn{flex:1;padding:9px 0;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-2);font-family:var(--font);font-weight:700;font-size:.75rem;cursor:pointer;transition:all .2s}
-    .pomo-btn:hover{border-color:var(--border-2);color:var(--text)}
-    .pomo-btn.primary{border-color:var(--accent);color:var(--accent)}
-    .pomo-btn.primary:hover{background:var(--accent);color:#06060f}
-    .pomo-settings{display:flex;flex-direction:column;gap:8px}
-    .pomo-setting{display:flex;align-items:center;justify-content:space-between;gap:10px}
-    .pomo-setting-label{font-size:.65rem;font-weight:700;color:var(--text-3);white-space:nowrap}
-    .pomo-setting input[type=range]{max-width:100px}
+    input[type=range]{
+      -webkit-appearance:none;appearance:none;width:100%;height:3px;
+      background:rgba(255,255,255,0.1);border-radius:2px;outline:none;cursor:pointer;
+    }
+    input[type=range]::-webkit-slider-thumb{
+      -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+      background:var(--accent);box-shadow:0 0 10px var(--glow);cursor:pointer;
+      transition:transform 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.4)}
+    input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:none;box-shadow:0 0 10px var(--glow)}
+
+    .divider{width:1px;height:38px;background:var(--border);flex-shrink:0}
+
+    /* ─── Pomodoro ───────────────────────────────── */
+    #pomo{
+      position:fixed;bottom:120px;right:32px;z-index:20;
+      background:var(--surface);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+      border:1px solid var(--border);border-top:1px solid rgba(255,255,255,0.13);
+      border-radius:20px;padding:24px;width:296px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.5);
+      animation:fade-up 0.3s cubic-bezier(0.4,0,0.2,1);
+    }
+    #pomo.hidden{display:none}
+
+    .ph{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+    .pt{font-weight:800;font-size:0.78rem;color:var(--text-2);letter-spacing:0.08em;text-transform:uppercase}
+    .ps{display:flex;gap:5px}
+    .pd{width:7px;height:7px;border-radius:50%;background:var(--border);transition:background 0.3s}
+    .pd.on{background:var(--accent)}
+
+    .pb{display:flex;align-items:center;gap:20px}
+    .pr{position:relative;flex-shrink:0;width:96px;height:96px}
+    .pr svg{width:96px;height:96px}
+    .pt2{fill:none;stroke:rgba(255,255,255,0.05);stroke-width:5}
+    #pp{fill:none;stroke:var(--accent);stroke-width:5;stroke-linecap:round;stroke-dasharray:251;stroke-dashoffset:0;transform:rotate(-90deg);transform-origin:center;transition:stroke-dashoffset 1s linear}
+    .pc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    #pt{font-family:var(--mono);font-size:1.05rem;font-weight:700;color:var(--text)}
+    #pl{font-size:0.52rem;font-weight:800;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-top:2px}
+
+    .pctrl{flex:1}
+    .pbtns{display:flex;gap:7px;margin-bottom:14px}
+    .pbtn{flex:1;padding:9px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;color:var(--text-2);font-family:var(--font);font-weight:700;font-size:0.73rem;cursor:pointer;transition:all 0.2s}
+    .pbtn:hover{border-color:var(--border-h);color:var(--text)}
+    .pbtn.pri{border-color:var(--accent);color:var(--accent)}
+    .pbtn.pri:hover{background:var(--accent);color:#04040e}
+
+    .psets{display:flex;flex-direction:column;gap:8px}
+    .pset{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .pset-label{font-size:0.62rem;font-weight:700;color:var(--text-2);white-space:nowrap}
+    .pset input[type=range]{max-width:96px}
 
     @media(max-width:600px){
-      #ui{padding:16px 16px 20px}
-      #player-bar{gap:8px;padding:12px 14px}
-      #play-btn{width:46px;height:46px}
-      #pomo-panel{width:calc(100vw - 32px);right:16px;bottom:110px}
-      .logo{font-size:1.2rem}
-      #track-title{font-size:0.82rem}
+      #ui{padding:18px 18px 20px}
+      #player{gap:12px;padding:14px 16px}
+      #play{width:50px;height:50px}
+      #pomo{width:calc(100vw - 36px);right:18px;bottom:106px}
+      #ambience{font-size:1.6rem;letter-spacing:0.3em}
     }
   </style>
 </head>
 <body>
 
-<!-- Hidden YouTube player -->
-<div id="yt-container">
-  <div id="yt-player"></div>
-</div>
+<div id="yt"><div id="yt-player"></div></div>
+<div id="bg"></div>
+<div id="vignette"></div>
+<canvas id="spotlight"></canvas>
 
-<!-- Background -->
-<div id="bg-container"></div>
-<div id="bg-overlay"></div>
-<canvas id="ripple-canvas"></canvas>
-
-<!-- UI -->
 <div id="ui">
-
-  <!-- Header -->
-  <div id="header">
-    <div class="logo">MyBrain<em>FM</em></div>
-    <div id="status-pill"><div class="dot"></div><span id="status-text">idle</span></div>
-    <button class="icon-btn" id="pomo-toggle-btn">⏱ timer</button>
+  <div id="top">
+    <div class="logo">MyBrain<b>FM</b></div>
+    <div id="pill"><div class="dot"></div><span id="pill-txt">idle</span></div>
+    <button id="timer-btn">⏱ timer</button>
   </div>
 
-  <!-- Image dots -->
-  <div id="img-dots"></div>
+  <div id="center"><div id="ambience">Ambience</div></div>
 
-  <!-- Track info (shows when playing) -->
-  <div id="track-info">
-    <div id="track-title">—</div>
-    <div id="track-channel"></div>
-  </div>
-
-  <!-- Player bar -->
-  <div id="player-bar">
-
-    <!-- Prev -->
-    <button class="track-btn" id="prev-btn" title="Previous">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
-    </button>
-
-    <!-- Play/Pause -->
-    <button id="play-btn">
-      <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
-        <path id="icon-path" d="M8 5.5L22 14L8 22.5V5.5Z" fill="white"/>
-      </svg>
-    </button>
-
-    <!-- Next -->
-    <button class="track-btn" id="next-btn" title="Next">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
-    </button>
-
-    <div class="bar-divider"></div>
-
-    <!-- Volume -->
-    <div class="slider-group">
-      <div class="slider-label">Volume <span id="vol-val">80%</span></div>
-      <input type="range" id="volume-slider" min="0" max="100" step="1" value="80">
+  <div>
+    <div id="dots"></div>
+    <div id="player">
+      <button class="ctrl" id="prev-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+      </button>
+      <button id="play">
+        <svg id="play-icon" width="26" height="26" viewBox="0 0 28 28" fill="none">
+          <path id="play-path" d="M8 5.5L22 14L8 22.5V5.5Z" fill="white"/>
+        </svg>
+      </button>
+      <button class="ctrl" id="next-btn">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
+      </button>
+      <div class="divider"></div>
+      <div class="vol-group">
+        <div class="vol-label">Volume <span id="vol-val">80%</span></div>
+        <input type="range" id="vol" min="0" max="100" step="1" value="80">
+      </div>
     </div>
-
   </div>
 </div>
 
 <!-- Pomodoro -->
-<div id="pomo-panel" class="hidden">
-  <div class="pomo-header">
-    <div class="pomo-title">Pomodoro</div>
-    <div class="pomo-sessions" id="pomo-dots"></div>
+<div id="pomo" class="hidden">
+  <div class="ph">
+    <div class="pt">Pomodoro</div>
+    <div class="ps" id="pomo-dots"></div>
   </div>
-  <div class="pomo-body">
-    <div class="pomo-ring-wrap">
-      <svg viewBox="0 0 100 100">
-        <circle class="pomo-track" cx="50" cy="50" r="45"/>
-        <circle id="pomo-progress" cx="50" cy="50" r="45" style="stroke-dasharray:282.7;stroke-dashoffset:0;"/>
+  <div class="pb">
+    <div class="pr">
+      <svg viewBox="0 0 80 80">
+        <circle class="pt2" cx="40" cy="40" r="36"/>
+        <circle id="pp" cx="40" cy="40" r="36" style="stroke-dasharray:226.2;stroke-dashoffset:0;"/>
       </svg>
-      <div class="pomo-center">
-        <div id="pomo-time">25:00</div>
-        <div id="pomo-phase-label">work</div>
-      </div>
+      <div class="pc"><div id="pt">25:00</div><div id="pl">work</div></div>
     </div>
-    <div class="pomo-controls">
-      <div class="pomo-btns">
-        <button class="pomo-btn primary" id="pomo-start">Start</button>
-        <button class="pomo-btn" id="pomo-reset">Reset</button>
+    <div class="pctrl">
+      <div class="pbtns">
+        <button class="pbtn pri" id="ps-btn">Start</button>
+        <button class="pbtn" id="pr-btn">Reset</button>
       </div>
-      <div class="pomo-settings">
-        <div class="pomo-setting"><span class="pomo-setting-label">Work <span id="pomo-work-val">25</span>m</span><input type="range" id="pomo-work" min="5" max="60" step="5" value="25"></div>
-        <div class="pomo-setting"><span class="pomo-setting-label">Break <span id="pomo-break-val">5</span>m</span><input type="range" id="pomo-break" min="1" max="30" step="1" value="5"></div>
-        <div class="pomo-setting"><span class="pomo-setting-label">Long Break <span id="pomo-long-val">15</span>m</span><input type="range" id="pomo-long" min="5" max="60" step="5" value="15"></div>
+      <div class="psets">
+        <div class="pset"><span class="pset-label">Work <span id="pw-val">25</span>m</span><input type="range" id="pw" min="5" max="60" step="5" value="25"></div>
+        <div class="pset"><span class="pset-label">Break <span id="pb-val">5</span>m</span><input type="range" id="pbr" min="1" max="30" step="1" value="5"></div>
+        <div class="pset"><span class="pset-label">Long Break <span id="plb-val">15</span>m</span><input type="range" id="plb" min="5" max="60" step="5" value="15"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- YouTube IFrame API -->
 <script src="https://www.youtube.com/iframe_api"></script>
-
 <script>
-// ── Config ────────────────────────────────────────────────────
-const PLAYLIST_ID = 'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8';
-
-const IMAGES = [
-  {src:'/static/images/city_rain.jpg',     label:'Rain City'},
-  {src:'/static/images/metropolis.jpg',    label:'Metropolis'},
-  {src:'/static/images/cyberpunk_neon.jpg',label:'Neon Grid'},
-  {src:'/static/images/astronaut.jpg',     label:'Cosmos'},
-  {src:'/static/images/snow_city.jpg',     label:'Winter Night'},
+// ── Config ───────────────────────────────────────────────────
+const PLAYLIST = 'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8';
+const IMGS = [
+  '/static/images/city_rain.jpg',
+  '/static/images/metropolis.jpg',
+  '/static/images/cyberpunk_neon.jpg',
+  '/static/images/astronaut.jpg',
+  '/static/images/snow_city.jpg',
+  '/static/images/city_distance.jpg',
 ];
+const IMG_DUR = 60000;
 
-const IMAGE_INTERVAL = 60000; // 1 min per image
-let curImg = 0, imgTimer = null;
-let isPlaying = false;
-let ytPlayer = null, ytReady = false;
+// ── State ────────────────────────────────────────────────────
+let playing = false, curImg = 0, imgTimer = null;
+let yt = null, ytReady = false;
 
-// ── YouTube IFrame API ────────────────────────────────────────
-function onYouTubeIframeAPIReady() {
-  ytPlayer = new YT.Player('yt-player', {
-    height: '1', width: '1',
-    playerVars: {
-      listType: 'playlist',
-      list: PLAYLIST_ID,
-      autoplay: 0,
-      controls: 0,
-      disablekb: 1,
-      fs: 0,
-      iv_load_policy: 3,
-      modestbranding: 1,
-      rel: 0,
-      shuffle: 0,
-    },
-    events: {
-      onReady: onPlayerReady,
-      onStateChange: onPlayerStateChange,
-      onError: onPlayerError,
+// ── WebGL Spotlight ──────────────────────────────────────────
+const canvas = document.getElementById('spotlight');
+const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+let mx = -1, my = -1;
+
+function initGL() {
+  if (!gl) return;
+  function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  const vs = `
+    attribute vec2 a_pos;
+    void main(){gl_Position=vec4(a_pos,0,1);}
+  `;
+  const fs = `
+    precision mediump float;
+    uniform vec2 u_res;
+    uniform vec2 u_mouse;
+    uniform float u_time;
+    void main(){
+      vec2 uv = gl_FragCoord.xy / u_res;
+      vec2 mouse = u_mouse / u_res;
+      mouse.y = 1.0 - mouse.y;
+      float d = distance(uv, mouse);
+      // Spotlight cone
+      float spot = smoothstep(0.28, 0.0, d);
+      // Chromatic tint: blue/purple
+      vec3 col = vec3(0.18, 0.35, 1.0) * spot * 0.12;
+      // Animated shimmer ring
+      float ring = smoothstep(0.002, 0.0, abs(d - 0.14 - 0.01*sin(u_time*2.0)));
+      col += vec3(0.5, 0.6, 1.0) * ring * 0.3;
+      float ring2 = smoothstep(0.001, 0.0, abs(d - 0.22));
+      col += vec3(0.3, 0.4, 0.9) * ring2 * 0.12;
+      gl_FragColor = vec4(col, 1.0);
     }
-  });
-}
+  `;
 
-function onPlayerReady(e) {
-  ytReady = true;
-  e.target.setVolume(80);
-  updateTrackInfo();
-}
-
-function onPlayerStateChange(e) {
-  const S = YT.PlayerState;
-  if (e.data === S.PLAYING) {
-    isPlaying = true;
-    updatePlayBtn();
-    updateStatusPill();
-    updateTrackInfo();
-    document.getElementById('track-info').classList.add('visible');
-  } else if (e.data === S.PAUSED || e.data === S.ENDED) {
-    if (e.data === S.ENDED) { ytPlayer.nextVideo(); return; }
-    isPlaying = false;
-    updatePlayBtn();
-    updateStatusPill();
+  function compile(type, src) {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src); gl.compileShader(sh);
+    return sh;
   }
-}
+  const prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, vs));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, fs));
+  gl.linkProgram(prog); gl.useProgram(prog);
 
-function onPlayerError(e) {
-  // Skip unplayable videos
-  setTimeout(() => { if (ytPlayer) ytPlayer.nextVideo(); }, 800);
-}
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
-function updateTrackInfo() {
-  if (!ytPlayer || !ytReady) return;
-  try {
-    const data = ytPlayer.getVideoData();
-    if (data && data.title) {
-      document.getElementById('track-title').textContent = data.title;
-      document.getElementById('track-channel').textContent = data.author || '';
-    }
-  } catch(e) {}
-}
+  const uRes   = gl.getUniformLocation(prog, 'u_res');
+  const uMouse = gl.getUniformLocation(prog, 'u_mouse');
+  const uTime  = gl.getUniformLocation(prog, 'u_time');
 
-// ── Playback controls ─────────────────────────────────────────
-function togglePlay() {
-  if (!ytReady) return;
-  if (isPlaying) {
-    ytPlayer.pauseVideo();
-    clearInterval(imgTimer);
-  } else {
-    ytPlayer.playVideo();
-    startImageTimer();
+  let t = 0;
+  function frame() {
+    t += 0.016;
+    gl.uniform2f(uRes, canvas.width, canvas.height);
+    gl.uniform2f(uMouse, mx < 0 ? -9999 : mx, my);
+    gl.uniform1f(uTime, t);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    requestAnimationFrame(frame);
   }
+  requestAnimationFrame(frame);
 }
 
-function prevTrack() {
-  if (!ytReady) return;
-  ytPlayer.previousVideo();
-  setTimeout(updateTrackInfo, 800);
-}
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+document.addEventListener('mouseleave', () => { mx = -1; my = -1; });
+initGL();
 
-function nextTrack() {
-  if (!ytReady) return;
-  ytPlayer.nextVideo();
-  setTimeout(updateTrackInfo, 800);
-}
-
-function updatePlayBtn() {
-  const btn  = document.getElementById('play-btn');
-  const path = document.getElementById('icon-path');
-  btn.classList.toggle('playing', isPlaying);
-  if (isPlaying) {
-    path.setAttribute('d', 'M7 4H12V24H7V4ZM16 4H21V24H16V4Z');
-  } else {
-    path.setAttribute('d', 'M8 5.5L22 14L8 22.5V5.5Z');
-  }
-}
-
-function updateStatusPill() {
-  const pill = document.getElementById('status-pill');
-  const txt  = document.getElementById('status-text');
-  pill.classList.toggle('playing', isPlaying);
-  if (isPlaying) {
-    try {
-      const d = ytPlayer.getVideoData();
-      txt.textContent = d.title || 'playing';
-    } catch(e) { txt.textContent = 'playing'; }
-  } else {
-    txt.textContent = 'idle';
-  }
-}
-
-document.getElementById('play-btn').addEventListener('click', togglePlay);
-document.getElementById('prev-btn').addEventListener('click', prevTrack);
-document.getElementById('next-btn').addEventListener('click', nextTrack);
-
-document.getElementById('volume-slider').addEventListener('input', e => {
-  const v = parseInt(e.target.value);
-  document.getElementById('vol-val').textContent = v + '%';
-  if (ytReady) ytPlayer.setVolume(v);
-});
-
-// ── Background Slideshow ──────────────────────────────────────
-const bgContainer = document.getElementById('bg-container');
+// ── Slides ───────────────────────────────────────────────────
+const bgEl = document.getElementById('bg');
 const slides = [];
 
 function buildSlides() {
-  IMAGES.forEach((img, i) => {
-    const div = document.createElement('div');
-    div.className = 'bg-slide';
-    div.style.backgroundImage = `url('${img.src}')`;
-    div.style.animationDirection = i % 2 === 0 ? 'alternate' : 'alternate-reverse';
-    div.style.animationDelay = `-${i * 9}s`;
-    bgContainer.appendChild(div);
-    slides.push(div);
+  IMGS.forEach((src, i) => {
+    const d = document.createElement('div');
+    d.className = 'slide';
+    d.style.backgroundImage = `url('${src}')`;
+    d.style.animationDirection = i % 2 ? 'alternate-reverse' : 'alternate';
+    d.style.animationDelay = `-${i * 13}s`;
+    bgEl.appendChild(d);
+    slides.push(d);
   });
-  const dotsEl = document.getElementById('img-dots');
-  IMAGES.forEach((_, i) => {
-    const d = document.createElement('button');
-    d.className = 'img-dot' + (i === 0 ? ' active' : '');
-    d.addEventListener('click', () => goToImage(i));
-    dotsEl.appendChild(d);
+  const dotsEl = document.getElementById('dots');
+  IMGS.forEach((_, i) => {
+    const b = document.createElement('button');
+    b.className = 'dot-btn' + (i === 0 ? ' on' : '');
+    b.addEventListener('click', () => goTo(i));
+    dotsEl.appendChild(b);
   });
-  slides[0].classList.add('active');
+  slides[0].classList.add('on');
 }
 
-function goToImage(idx) {
-  slides[curImg].classList.remove('active');
-  document.querySelectorAll('.img-dot')[curImg].classList.remove('active');
-  curImg = ((idx % IMAGES.length) + IMAGES.length) % IMAGES.length;
-  slides[curImg].classList.add('active');
-  document.querySelectorAll('.img-dot')[curImg].classList.add('active');
+function goTo(i) {
+  slides[curImg].classList.remove('on');
+  document.querySelectorAll('.dot-btn')[curImg].classList.remove('on');
+  curImg = ((i % IMGS.length) + IMGS.length) % IMGS.length;
+  slides[curImg].classList.add('on');
+  document.querySelectorAll('.dot-btn')[curImg].classList.add('on');
+}
+function startTimer() { clearInterval(imgTimer); imgTimer = setInterval(() => goTo(curImg + 1), IMG_DUR); }
+
+// ── YouTube ───────────────────────────────────────────────────
+function onYouTubeIframeAPIReady() {
+  yt = new YT.Player('yt-player', {
+    height:'1', width:'1',
+    playerVars:{listType:'playlist',list:PLAYLIST,autoplay:0,controls:0,disablekb:1,fs:0,iv_load_policy:3,modestbranding:1,rel:0},
+    events:{onReady:e=>{ytReady=true;e.target.setVolume(80);},onStateChange:onState,onError:()=>{setTimeout(()=>yt&&yt.nextVideo(),800);}}
+  });
 }
 
-function startImageTimer() {
-  clearInterval(imgTimer);
-  imgTimer = setInterval(() => goToImage(curImg + 1), IMAGE_INTERVAL);
-}
-
-// ── Ripple / Lens Effect ──────────────────────────────────────
-const rc   = document.getElementById('ripple-canvas');
-const rctx = rc.getContext('2d');
-let mx = -999, my = -999, rf = 0;
-
-function resizeRC() { rc.width = window.innerWidth; rc.height = window.innerHeight; }
-window.addEventListener('resize', resizeRC);
-resizeRC();
-document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
-document.addEventListener('mouseleave', () => { mx = -999; my = -999; });
-
-function drawRipple() {
-  rctx.clearRect(0, 0, rc.width, rc.height);
-  if (mx > 0 && my > 0) {
-    const R = 140;
-    const g = rctx.createRadialGradient(mx, my, R * 0.4, mx, my, R);
-    g.addColorStop(0,    'rgba(255,255,255,0)');
-    g.addColorStop(0.55, 'rgba(255,255,255,0.012)');
-    g.addColorStop(0.82, 'rgba(255,255,255,0.05)');
-    g.addColorStop(1,    'rgba(255,255,255,0)');
-    rctx.beginPath(); rctx.arc(mx, my, R, 0, Math.PI*2);
-    rctx.fillStyle = g; rctx.fill();
-    rctx.beginPath(); rctx.arc(mx, my, R * 0.5, 0, Math.PI*2);
-    rctx.strokeStyle = `rgba(255,255,255,${0.055 + 0.02*Math.sin(rf*0.05)})`;
-    rctx.lineWidth = 1.2; rctx.stroke();
-    rctx.beginPath(); rctx.arc(mx, my, R, 0, Math.PI*2);
-    rctx.strokeStyle = `rgba(255,255,255,${0.028 + 0.01*Math.sin(rf*0.03)})`;
-    rctx.lineWidth = 0.7; rctx.stroke();
-    const cr = R * 0.5, a = rf * 0.012;
-    for (let k = 0; k < 4; k++) {
-      const ang = a + k * Math.PI/2;
-      rctx.beginPath();
-      rctx.arc(mx + Math.cos(ang)*cr, my + Math.sin(ang)*cr, 1.5, 0, Math.PI*2);
-      rctx.fillStyle = `rgba(255,255,255,${0.35 + 0.15*Math.sin(rf*0.06+k)})`;
-      rctx.fill();
-    }
-    rf++;
-  }
-  requestAnimationFrame(drawRipple);
-}
-requestAnimationFrame(drawRipple);
-
-// ── Pomodoro ──────────────────────────────────────────────────
-const pomo = { running:false, phase:'work', elapsed:0, sessions:0, timer:null, workDur:25*60, breakDur:5*60, longDur:15*60 };
-const CIRC = 282.7;
-function pomoDur(){ return pomo.phase==='work'?pomo.workDur:pomo.phase==='break'?pomo.breakDur:pomo.longDur; }
-function pomoUpdateUI(){
-  const dur=pomoDur(), rem=dur-pomo.elapsed;
-  document.getElementById('pomo-time').textContent = String(Math.floor(rem/60)).padStart(2,'0')+':'+String(rem%60).padStart(2,'0');
-  document.getElementById('pomo-phase-label').textContent = pomo.phase==='work'?'work':'rest';
-  document.getElementById('pomo-progress').style.strokeDashoffset = CIRC*(1-pomo.elapsed/dur);
-  const dots=document.getElementById('pomo-dots'); dots.innerHTML='';
-  for(let i=0;i<4;i++){const d=document.createElement('div');d.className='pomo-dot'+(i<pomo.sessions%4?' done':'');dots.appendChild(d);}
-}
-function pomoAdvance(){
-  if(pomo.phase==='work'){
-    pomo.sessions++;pomo.elapsed=0;
-    pomo.phase=pomo.sessions%4===0?'longbreak':'break';
-    if(isPlaying && ytReady) ytPlayer.pauseVideo();
-    pomoNotify('Rest time! Take a break.');
-  } else {
-    pomo.elapsed=0;pomo.phase='work';
-    if(ytReady) ytPlayer.playVideo();
-    pomoNotify('Back to work!');
-  }
-  pomoUpdateUI();
-}
-function pomoStart(){
-  if(pomo.running){clearInterval(pomo.timer);pomo.running=false;document.getElementById('pomo-start').textContent='Resume';}
-  else{
-    if(!isPlaying) togglePlay();
-    pomo.running=true;
-    pomo.timer=setInterval(()=>{pomo.elapsed++;pomo.elapsed>=pomoDur()?pomoAdvance():pomoUpdateUI();},1000);
-    document.getElementById('pomo-start').textContent='Pause';
+function onState(e) {
+  const S = YT.PlayerState;
+  if (e.data === S.PLAYING) {
+    playing = true; updatePlay(); updatePill();
+  } else if (e.data === S.PAUSED) {
+    playing = false; updatePlay(); updatePill();
+  } else if (e.data === S.ENDED) {
+    yt.nextVideo();
   }
 }
-function pomoStop(){clearInterval(pomo.timer);pomo.running=false;}
-function pomoReset(){pomoStop();pomo.elapsed=0;pomo.phase='work';pomo.sessions=0;document.getElementById('pomo-start').textContent='Start';pomoUpdateUI();}
-function pomoNotify(msg){if('Notification'in window&&Notification.permission==='granted')new Notification('MyBrainFM',{body:msg});}
 
-document.getElementById('pomo-start').addEventListener('click', pomoStart);
-document.getElementById('pomo-reset').addEventListener('click', pomoReset);
-['work','break','long'].forEach(t=>{
-  const el=document.getElementById('pomo-'+t);
-  el.addEventListener('input',()=>{
-    const v=parseInt(el.value);
-    document.getElementById('pomo-'+t+'-val').textContent=v;
-    if(t==='work')pomo.workDur=v*60;
-    if(t==='break')pomo.breakDur=v*60;
-    if(t==='long')pomo.longDur=v*60;
-    if(!pomo.running){pomo.elapsed=0;pomoUpdateUI();}
+function togglePlay() {
+  if (!ytReady) return;
+  if (playing) { yt.pauseVideo(); clearInterval(imgTimer); }
+  else { yt.playVideo(); startTimer(); }
+}
+
+function updatePlay() {
+  const btn = document.getElementById('play');
+  const path = document.getElementById('play-path');
+  btn.classList.toggle('on', playing);
+  path.setAttribute('d', playing
+    ? 'M7 4H12V24H7V4ZM16 4H21V24H16V4Z'
+    : 'M8 5.5L22 14L8 22.5V5.5Z');
+}
+
+function updatePill() {
+  const pill = document.getElementById('pill');
+  const txt  = document.getElementById('pill-txt');
+  pill.classList.toggle('on', playing);
+  if (playing) {
+    try { const d = yt.getVideoData(); txt.textContent = d.title || 'playing'; } catch(e) { txt.textContent = 'playing'; }
+  } else { txt.textContent = 'idle'; }
+}
+
+document.getElementById('play').addEventListener('click', togglePlay);
+document.getElementById('prev-btn').addEventListener('click', () => ytReady && yt.previousVideo());
+document.getElementById('next-btn').addEventListener('click', () => ytReady && yt.nextVideo());
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseInt(e.target.value);
+  document.getElementById('vol-val').textContent = v + '%';
+  if (ytReady) yt.setVolume(v);
+});
+
+// ── Pomodoro ─────────────────────────────────────────────────
+const CIRC = 226.2;
+const p = {run:false,phase:'work',el:0,sess:0,tmr:null,w:25*60,b:5*60,lb:15*60};
+function pdur(){return p.phase==='work'?p.w:p.phase==='break'?p.b:p.lb;}
+function pui(){
+  const d=pdur(),r=d-p.el;
+  document.getElementById('pt').textContent=String(Math.floor(r/60)).padStart(2,'0')+':'+String(r%60).padStart(2,'0');
+  document.getElementById('pl').textContent=p.phase==='work'?'work':'rest';
+  document.getElementById('pp').style.strokeDashoffset=CIRC*(1-p.el/d);
+  const dots=document.getElementById('pomo-dots');dots.innerHTML='';
+  for(let i=0;i<4;i++){const d=document.createElement('div');d.className='pd'+(i<p.sess%4?' on':'');dots.appendChild(d);}
+}
+function padv(){
+  if(p.phase==='work'){p.sess++;p.el=0;p.phase=p.sess%4===0?'longbreak':'break';if(playing&&ytReady)yt.pauseVideo();pnotify('Rest!');}
+  else{p.el=0;p.phase='work';if(ytReady)yt.playVideo();pnotify('Back to work!');}
+  pui();
+}
+function pstart(){
+  if(p.run){clearInterval(p.tmr);p.run=false;document.getElementById('ps-btn').textContent='Resume';}
+  else{if(!playing)togglePlay();p.run=true;p.tmr=setInterval(()=>{p.el++;p.el>=pdur()?padv():pui();},1000);document.getElementById('ps-btn').textContent='Pause';}
+}
+function pstop(){clearInterval(p.tmr);p.run=false;}
+function preset(){pstop();p.el=0;p.phase='work';p.sess=0;document.getElementById('ps-btn').textContent='Start';pui();}
+function pnotify(m){if('Notification'in window&&Notification.permission==='granted')new Notification('MyBrainFM',{body:m});}
+
+document.getElementById('ps-btn').addEventListener('click',pstart);
+document.getElementById('pr-btn').addEventListener('click',preset);
+[['pw','w','pw-val'],['pbr','b','pb-val'],['plb','lb','plb-val']].forEach(([id,key,vid])=>{
+  document.getElementById(id).addEventListener('input',e=>{
+    const v=parseInt(e.target.value);
+    document.getElementById(vid).textContent=v;
+    p[key]=v*60;if(!p.run){p.el=0;pui();}
   });
 });
-document.getElementById('pomo-toggle-btn').addEventListener('click',()=>{
-  const panel=document.getElementById('pomo-panel');
-  const hidden=panel.classList.toggle('hidden');
-  document.getElementById('pomo-toggle-btn').classList.toggle('active',!hidden);
-  if(!hidden){pomoUpdateUI();if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
-  if(hidden&&pomo.running)pomoStop();
+document.getElementById('timer-btn').addEventListener('click',()=>{
+  const el=document.getElementById('pomo');
+  const h=el.classList.toggle('hidden');
+  document.getElementById('timer-btn').classList.toggle('on',!h);
+  if(!h){pui();if('Notification'in window&&Notification.permission==='default')Notification.requestPermission();}
+  if(h&&p.run)pstop();
 });
 
 // ── Init ──────────────────────────────────────────────────────
 buildSlides();
-pomoUpdateUI();
+pui();
 </script>
 </body>
 </html>
