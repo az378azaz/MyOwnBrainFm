@@ -282,6 +282,9 @@ const IMGS = [
   '/static/images/snow_city.jpg',
   '/static/images/city_distance.jpg',
   '/static/images/black_hole.jpg',
+  '/static/images/settlement.jpg',
+  '/static/images/moon_base.jpg',
+  '/static/images/moon_colony.jpg',
 ];
 const IMG_DUR = 60000;
 
@@ -318,15 +321,15 @@ function initGL() {
       vec2 mouse = u_mouse / u_res;
       mouse.y = 1.0 - mouse.y;
       float d = distance(uv, mouse);
-      // Spotlight cone
-      float spot = smoothstep(0.28, 0.0, d);
+      // Spotlight cone — smaller radius
+      float spot = smoothstep(0.10, 0.0, d);
       // Chromatic tint: blue/purple
-      vec3 col = vec3(0.18, 0.35, 1.0) * spot * 0.12;
-      // Animated shimmer ring
-      float ring = smoothstep(0.002, 0.0, abs(d - 0.14 - 0.01*sin(u_time*2.0)));
-      col += vec3(0.5, 0.6, 1.0) * ring * 0.3;
-      float ring2 = smoothstep(0.001, 0.0, abs(d - 0.22));
-      col += vec3(0.3, 0.4, 0.9) * ring2 * 0.12;
+      vec3 col = vec3(0.18, 0.35, 1.0) * spot * 0.06;
+      // Animated shimmer ring — tighter
+      float ring = smoothstep(0.002, 0.0, abs(d - 0.055 - 0.006*sin(u_time*2.0)));
+      col += vec3(0.5, 0.6, 1.0) * ring * 0.18;
+      float ring2 = smoothstep(0.001, 0.0, abs(d - 0.09));
+      col += vec3(0.3, 0.4, 0.9) * ring2 * 0.07;
       gl_FragColor = vec4(col, 1.0);
     }
   `;
