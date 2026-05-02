@@ -8,13 +8,21 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --bg:#06060f;--surface:rgba(8,8,20,0.82);--border:rgba(255,255,255,0.10);
+      --bg:#06060f;--surface:rgba(8,8,20,0.85);--border:rgba(255,255,255,0.10);
       --border-2:rgba(255,255,255,0.20);--text:#e8eaf6;--text-2:#8890c0;--text-3:#30305a;
       --accent:#4a8fff;--accent-glow:rgba(74,143,255,0.22);
       --font:'Nunito',sans-serif;--font-mono:'Space Mono',monospace;--r:16px;--r-sm:10px;
     }
     html,body{width:100%;height:100%;overflow:hidden}
     body{background:var(--bg);color:var(--text);font-family:var(--font);position:relative}
+
+    /* ── YouTube hidden player ── */
+    #yt-container{
+      position:fixed;bottom:-9999px;left:-9999px;
+      width:1px;height:1px;pointer-events:none;z-index:-1;
+    }
+
+    /* ── Background slides ── */
     #bg-container{position:fixed;inset:0;z-index:0;overflow:hidden}
     .bg-slide{
       position:absolute;inset:0;background-size:cover;background-position:center;
@@ -28,30 +36,59 @@
     }
     #bg-overlay{
       position:fixed;inset:0;z-index:1;pointer-events:none;
-      background:linear-gradient(to bottom,rgba(6,6,15,0.45) 0%,rgba(6,6,15,0.10) 40%,rgba(6,6,15,0.60) 100%)
+      background:linear-gradient(to bottom,rgba(6,6,15,0.45) 0%,rgba(6,6,15,0.08) 40%,rgba(6,6,15,0.65) 100%)
     }
+
+    /* ── Ripple canvas ── */
     #ripple-canvas{position:fixed;inset:0;z-index:2;pointer-events:none}
+
+    /* ── UI ── */
     #ui{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;justify-content:space-between;padding:24px 28px 28px;pointer-events:none}
+
+    /* Header */
     #header{display:flex;align-items:center;justify-content:space-between;pointer-events:all}
     .logo{font-weight:900;font-size:1.5rem;letter-spacing:-0.02em;color:var(--text);text-shadow:0 2px 20px rgba(0,0,0,0.9)}
     .logo em{font-style:normal;color:var(--accent)}
-    #status-pill{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-2);background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:100px;padding:6px 14px;transition:all .4s}
-    #status-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--text-3);transition:background .3s,box-shadow .3s}
+    #status-pill{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:0.6rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--text-2);background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:100px;padding:6px 14px;transition:all .4s;max-width:260px;overflow:hidden}
+    #status-pill .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--text-3);transition:background .3s,box-shadow .3s}
     #status-pill.playing .dot{background:var(--accent);box-shadow:0 0 10px var(--accent);animation:pulse-dot 1.8s ease-in-out infinite}
     #status-pill.playing{color:var(--text);border-color:var(--border-2)}
+    #status-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.3}}
     .icon-btn{background:var(--surface);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 16px;color:var(--text-2);font-family:var(--font);font-size:0.8rem;font-weight:700;cursor:pointer;transition:all .2s}
     .icon-btn:hover{border-color:var(--border-2);color:var(--text)}
     .icon-btn.active{border-color:var(--accent);color:var(--accent)}
+
+    /* Image dots */
     #img-dots{display:flex;gap:6px;justify-content:center;pointer-events:all}
     .img-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.3);cursor:pointer;transition:all .3s;border:none;padding:0}
     .img-dot.active{background:var(--accent);box-shadow:0 0 8px var(--accent);width:20px;border-radius:3px}
     .img-dot:hover{background:rgba(255,255,255,0.6)}
+
+    /* Track info */
+    #track-info{
+      display:flex;flex-direction:column;align-items:center;gap:4px;
+      opacity:0;transition:opacity .5s;pointer-events:none;
+    }
+    #track-info.visible{opacity:1}
+    #track-title{font-weight:800;font-size:0.95rem;color:var(--text);text-shadow:0 2px 12px rgba(0,0,0,0.9);text-align:center;max-width:400px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    #track-channel{font-size:0.72rem;color:var(--text-2);font-weight:600}
+
+    /* Player bar */
     #player-bar{display:flex;align-items:center;gap:16px;background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--r);padding:16px 20px;pointer-events:all}
+
+    /* Track controls */
+    .track-btn{width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.07);border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;color:var(--text-2)}
+    .track-btn:hover{background:rgba(255,255,255,0.12);color:var(--text);border-color:var(--border-2)}
+    .track-btn svg{width:14px;height:14px}
+
+    /* Play button */
     #play-btn{width:56px;height:56px;border-radius:50%;flex-shrink:0;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .25s;box-shadow:0 0 20px var(--accent-glow)}
     #play-btn:hover{transform:scale(1.08);box-shadow:0 0 34px var(--accent-glow)}
     #play-btn.playing{box-shadow:0 0 0 6px var(--accent-glow),0 0 30px var(--accent-glow);animation:play-ring 2.5s ease-in-out infinite}
     @keyframes play-ring{0%,100%{box-shadow:0 0 0 6px var(--accent-glow),0 0 30px var(--accent-glow)}50%{box-shadow:0 0 0 12px rgba(74,143,255,0.08),0 0 40px var(--accent-glow)}}
+
+    /* Sliders */
     .slider-group{display:flex;flex-direction:column;gap:6px;flex:1}
     .slider-label{display:flex;justify-content:space-between;font-size:0.65rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-2)}
     .slider-label span{color:var(--text)}
@@ -60,6 +97,8 @@
     input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.35)}
     input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--accent);border:none;box-shadow:0 0 8px var(--accent)}
     .bar-divider{width:1px;height:40px;background:var(--border);flex-shrink:0}
+
+    /* Pomodoro */
     #pomo-panel{position:fixed;bottom:120px;right:28px;z-index:20;background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:var(--r);padding:22px;width:300px;animation:slide-up .3s cubic-bezier(.4,0,.2,1)}
     #pomo-panel.hidden{display:none}
     @keyframes slide-up{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
@@ -86,43 +125,80 @@
     .pomo-setting{display:flex;align-items:center;justify-content:space-between;gap:10px}
     .pomo-setting-label{font-size:.65rem;font-weight:700;color:var(--text-3);white-space:nowrap}
     .pomo-setting input[type=range]{max-width:100px}
+
     @media(max-width:600px){
       #ui{padding:16px 16px 20px}
-      #player-bar{gap:10px;padding:12px 14px}
+      #player-bar{gap:8px;padding:12px 14px}
       #play-btn{width:46px;height:46px}
       #pomo-panel{width:calc(100vw - 32px);right:16px;bottom:110px}
       .logo{font-size:1.2rem}
+      #track-title{font-size:0.82rem}
     }
   </style>
 </head>
 <body>
+
+<!-- Hidden YouTube player -->
+<div id="yt-container">
+  <div id="yt-player"></div>
+</div>
+
+<!-- Background -->
 <div id="bg-container"></div>
 <div id="bg-overlay"></div>
 <canvas id="ripple-canvas"></canvas>
+
+<!-- UI -->
 <div id="ui">
+
+  <!-- Header -->
   <div id="header">
     <div class="logo">MyBrain<em>FM</em></div>
     <div id="status-pill"><div class="dot"></div><span id="status-text">idle</span></div>
     <button class="icon-btn" id="pomo-toggle-btn">⏱ timer</button>
   </div>
+
+  <!-- Image dots -->
   <div id="img-dots"></div>
+
+  <!-- Track info (shows when playing) -->
+  <div id="track-info">
+    <div id="track-title">—</div>
+    <div id="track-channel"></div>
+  </div>
+
+  <!-- Player bar -->
   <div id="player-bar">
+
+    <!-- Prev -->
+    <button class="track-btn" id="prev-btn" title="Previous">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+    </button>
+
+    <!-- Play/Pause -->
     <button id="play-btn">
-      <svg id="play-icon" width="24" height="24" viewBox="0 0 28 28" fill="none">
+      <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
         <path id="icon-path" d="M8 5.5L22 14L8 22.5V5.5Z" fill="white"/>
       </svg>
     </button>
+
+    <!-- Next -->
+    <button class="track-btn" id="next-btn" title="Next">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
+    </button>
+
+    <div class="bar-divider"></div>
+
+    <!-- Volume -->
     <div class="slider-group">
       <div class="slider-label">Volume <span id="vol-val">80%</span></div>
-      <input type="range" id="volume-slider" min="0" max="1" step="0.01" value="0.8">
+      <input type="range" id="volume-slider" min="0" max="100" step="1" value="80">
     </div>
-    <div class="bar-divider"></div>
-    <div class="slider-group">
-      <div class="slider-label">Intensity <span id="int-val">50%</span></div>
-      <input type="range" id="intensity-slider" min="0" max="1" step="0.01" value="0.5">
-    </div>
+
   </div>
 </div>
+
+<!-- Pomodoro -->
 <div id="pomo-panel" class="hidden">
   <div class="pomo-header">
     <div class="pomo-title">Pomodoro</div>
@@ -152,96 +228,219 @@
     </div>
   </div>
 </div>
+
+<!-- YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
 <script>
-const MODES = {{ modes_json | safe }};
-const CHUNK_DURATION = {{ chunk_duration }};
+// ── Config ────────────────────────────────────────────────────
+const PLAYLIST_ID = 'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8';
 
 const IMAGES = [
-  {src:'/static/images/city_rain.jpg',label:'Rain City'},
-  {src:'/static/images/metropolis.jpg',label:'Metropolis'},
+  {src:'/static/images/city_rain.jpg',     label:'Rain City'},
+  {src:'/static/images/metropolis.jpg',    label:'Metropolis'},
   {src:'/static/images/cyberpunk_neon.jpg',label:'Neon Grid'},
-  {src:'/static/images/astronaut.jpg',label:'Cosmos'},
-  {src:'/static/images/snow_city.jpg',label:'Winter Night'},
-  {src:'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=1920&q=80',label:'Deep Space'},
-  {src:'https://images.unsplash.com/photo-1484589065579-248aad0d8b13?w=1920&q=80',label:'Nebula'},
-  {src:'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?w=1920&q=80',label:'Planet Rise'},
-  {src:'https://images.unsplash.com/photo-1545569341-9eb8b30979d9?w=1920&q=80',label:'Tokyo Night'},
-  {src:'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=80',label:'Cyber Street'},
+  {src:'/static/images/astronaut.jpg',     label:'Cosmos'},
+  {src:'/static/images/snow_city.jpg',     label:'Winter Night'},
 ];
 
-const IMAGE_INTERVAL = 60000;
-let activeMode='ambient', isPlaying=false, volume=0.8, intensity=0.5;
-let curImg=0, imgTimer=null;
+const IMAGE_INTERVAL = 60000; // 1 min per image
+let curImg = 0, imgTimer = null;
+let isPlaying = false;
+let ytPlayer = null, ytReady = false;
 
-// Slides
-const bgContainer=document.getElementById('bg-container');
-const slides=[];
-function buildSlides(){
-  IMAGES.forEach((img,i)=>{
-    const div=document.createElement('div');
-    div.className='bg-slide';
-    div.style.backgroundImage=`url('${img.src}')`;
-    div.style.animationDirection=i%2===0?'alternate':'alternate-reverse';
-    div.style.animationDelay=`${-i*9}s`;
+// ── YouTube IFrame API ────────────────────────────────────────
+function onYouTubeIframeAPIReady() {
+  ytPlayer = new YT.Player('yt-player', {
+    height: '1', width: '1',
+    playerVars: {
+      listType: 'playlist',
+      list: PLAYLIST_ID,
+      autoplay: 0,
+      controls: 0,
+      disablekb: 1,
+      fs: 0,
+      iv_load_policy: 3,
+      modestbranding: 1,
+      rel: 0,
+      shuffle: 0,
+    },
+    events: {
+      onReady: onPlayerReady,
+      onStateChange: onPlayerStateChange,
+      onError: onPlayerError,
+    }
+  });
+}
+
+function onPlayerReady(e) {
+  ytReady = true;
+  e.target.setVolume(80);
+  updateTrackInfo();
+}
+
+function onPlayerStateChange(e) {
+  const S = YT.PlayerState;
+  if (e.data === S.PLAYING) {
+    isPlaying = true;
+    updatePlayBtn();
+    updateStatusPill();
+    updateTrackInfo();
+    document.getElementById('track-info').classList.add('visible');
+  } else if (e.data === S.PAUSED || e.data === S.ENDED) {
+    if (e.data === S.ENDED) { ytPlayer.nextVideo(); return; }
+    isPlaying = false;
+    updatePlayBtn();
+    updateStatusPill();
+  }
+}
+
+function onPlayerError(e) {
+  // Skip unplayable videos
+  setTimeout(() => { if (ytPlayer) ytPlayer.nextVideo(); }, 800);
+}
+
+function updateTrackInfo() {
+  if (!ytPlayer || !ytReady) return;
+  try {
+    const data = ytPlayer.getVideoData();
+    if (data && data.title) {
+      document.getElementById('track-title').textContent = data.title;
+      document.getElementById('track-channel').textContent = data.author || '';
+    }
+  } catch(e) {}
+}
+
+// ── Playback controls ─────────────────────────────────────────
+function togglePlay() {
+  if (!ytReady) return;
+  if (isPlaying) {
+    ytPlayer.pauseVideo();
+    clearInterval(imgTimer);
+  } else {
+    ytPlayer.playVideo();
+    startImageTimer();
+  }
+}
+
+function prevTrack() {
+  if (!ytReady) return;
+  ytPlayer.previousVideo();
+  setTimeout(updateTrackInfo, 800);
+}
+
+function nextTrack() {
+  if (!ytReady) return;
+  ytPlayer.nextVideo();
+  setTimeout(updateTrackInfo, 800);
+}
+
+function updatePlayBtn() {
+  const btn  = document.getElementById('play-btn');
+  const path = document.getElementById('icon-path');
+  btn.classList.toggle('playing', isPlaying);
+  if (isPlaying) {
+    path.setAttribute('d', 'M7 4H12V24H7V4ZM16 4H21V24H16V4Z');
+  } else {
+    path.setAttribute('d', 'M8 5.5L22 14L8 22.5V5.5Z');
+  }
+}
+
+function updateStatusPill() {
+  const pill = document.getElementById('status-pill');
+  const txt  = document.getElementById('status-text');
+  pill.classList.toggle('playing', isPlaying);
+  if (isPlaying) {
+    try {
+      const d = ytPlayer.getVideoData();
+      txt.textContent = d.title || 'playing';
+    } catch(e) { txt.textContent = 'playing'; }
+  } else {
+    txt.textContent = 'idle';
+  }
+}
+
+document.getElementById('play-btn').addEventListener('click', togglePlay);
+document.getElementById('prev-btn').addEventListener('click', prevTrack);
+document.getElementById('next-btn').addEventListener('click', nextTrack);
+
+document.getElementById('volume-slider').addEventListener('input', e => {
+  const v = parseInt(e.target.value);
+  document.getElementById('vol-val').textContent = v + '%';
+  if (ytReady) ytPlayer.setVolume(v);
+});
+
+// ── Background Slideshow ──────────────────────────────────────
+const bgContainer = document.getElementById('bg-container');
+const slides = [];
+
+function buildSlides() {
+  IMAGES.forEach((img, i) => {
+    const div = document.createElement('div');
+    div.className = 'bg-slide';
+    div.style.backgroundImage = `url('${img.src}')`;
+    div.style.animationDirection = i % 2 === 0 ? 'alternate' : 'alternate-reverse';
+    div.style.animationDelay = `-${i * 9}s`;
     bgContainer.appendChild(div);
     slides.push(div);
   });
-  const dotsEl=document.getElementById('img-dots');
-  IMAGES.forEach((_,i)=>{
-    const d=document.createElement('button');
-    d.className='img-dot'+(i===0?' active':'');
-    d.addEventListener('click',()=>goToImage(i));
+  const dotsEl = document.getElementById('img-dots');
+  IMAGES.forEach((_, i) => {
+    const d = document.createElement('button');
+    d.className = 'img-dot' + (i === 0 ? ' active' : '');
+    d.addEventListener('click', () => goToImage(i));
     dotsEl.appendChild(d);
   });
   slides[0].classList.add('active');
 }
 
-function goToImage(idx){
+function goToImage(idx) {
   slides[curImg].classList.remove('active');
   document.querySelectorAll('.img-dot')[curImg].classList.remove('active');
-  curImg=((idx%IMAGES.length)+IMAGES.length)%IMAGES.length;
+  curImg = ((idx % IMAGES.length) + IMAGES.length) % IMAGES.length;
   slides[curImg].classList.add('active');
   document.querySelectorAll('.img-dot')[curImg].classList.add('active');
-  if(isPlaying) document.getElementById('status-text').textContent=IMAGES[curImg].label.toLowerCase();
 }
-function startImageTimer(){clearInterval(imgTimer);imgTimer=setInterval(()=>goToImage(curImg+1),IMAGE_INTERVAL);}
 
-// Ripple/lens effect
-const rc=document.getElementById('ripple-canvas');
-const rctx=rc.getContext('2d');
-let mx=-999,my=-999,rf=0;
-function resizeRC(){rc.width=window.innerWidth;rc.height=window.innerHeight;}
-window.addEventListener('resize',resizeRC);resizeRC();
-document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;});
-document.addEventListener('mouseleave',()=>{mx=-999;my=-999;});
+function startImageTimer() {
+  clearInterval(imgTimer);
+  imgTimer = setInterval(() => goToImage(curImg + 1), IMAGE_INTERVAL);
+}
 
-function drawRipple(){
-  rctx.clearRect(0,0,rc.width,rc.height);
-  if(mx>0&&my>0){
-    const R=140;
-    // Glow fill
-    const g=rctx.createRadialGradient(mx,my,R*0.4,mx,my,R);
-    g.addColorStop(0,'rgba(255,255,255,0)');
-    g.addColorStop(0.55,'rgba(255,255,255,0.012)');
-    g.addColorStop(0.82,'rgba(255,255,255,0.05)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    rctx.beginPath();rctx.arc(mx,my,R,0,Math.PI*2);
-    rctx.fillStyle=g;rctx.fill();
-    // Inner ring
-    rctx.beginPath();rctx.arc(mx,my,R*0.5,0,Math.PI*2);
-    rctx.strokeStyle=`rgba(255,255,255,${0.055+0.02*Math.sin(rf*0.05)})`;
-    rctx.lineWidth=1.2;rctx.stroke();
-    // Outer ring
-    rctx.beginPath();rctx.arc(mx,my,R,0,Math.PI*2);
-    rctx.strokeStyle=`rgba(255,255,255,${0.028+0.01*Math.sin(rf*0.03)})`;
-    rctx.lineWidth=0.7;rctx.stroke();
-    // Crosshair dots
-    const cr=R*0.5,a=rf*0.012;
-    for(let k=0;k<4;k++){
-      const ang=a+k*Math.PI/2;
-      const dx=Math.cos(ang)*cr,dy=Math.sin(ang)*cr;
-      rctx.beginPath();rctx.arc(mx+dx,my+dy,1.5,0,Math.PI*2);
-      rctx.fillStyle=`rgba(255,255,255,${0.35+0.15*Math.sin(rf*0.06+k)})`;
+// ── Ripple / Lens Effect ──────────────────────────────────────
+const rc   = document.getElementById('ripple-canvas');
+const rctx = rc.getContext('2d');
+let mx = -999, my = -999, rf = 0;
+
+function resizeRC() { rc.width = window.innerWidth; rc.height = window.innerHeight; }
+window.addEventListener('resize', resizeRC);
+resizeRC();
+document.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+document.addEventListener('mouseleave', () => { mx = -999; my = -999; });
+
+function drawRipple() {
+  rctx.clearRect(0, 0, rc.width, rc.height);
+  if (mx > 0 && my > 0) {
+    const R = 140;
+    const g = rctx.createRadialGradient(mx, my, R * 0.4, mx, my, R);
+    g.addColorStop(0,    'rgba(255,255,255,0)');
+    g.addColorStop(0.55, 'rgba(255,255,255,0.012)');
+    g.addColorStop(0.82, 'rgba(255,255,255,0.05)');
+    g.addColorStop(1,    'rgba(255,255,255,0)');
+    rctx.beginPath(); rctx.arc(mx, my, R, 0, Math.PI*2);
+    rctx.fillStyle = g; rctx.fill();
+    rctx.beginPath(); rctx.arc(mx, my, R * 0.5, 0, Math.PI*2);
+    rctx.strokeStyle = `rgba(255,255,255,${0.055 + 0.02*Math.sin(rf*0.05)})`;
+    rctx.lineWidth = 1.2; rctx.stroke();
+    rctx.beginPath(); rctx.arc(mx, my, R, 0, Math.PI*2);
+    rctx.strokeStyle = `rgba(255,255,255,${0.028 + 0.01*Math.sin(rf*0.03)})`;
+    rctx.lineWidth = 0.7; rctx.stroke();
+    const cr = R * 0.5, a = rf * 0.012;
+    for (let k = 0; k < 4; k++) {
+      const ang = a + k * Math.PI/2;
+      rctx.beginPath();
+      rctx.arc(mx + Math.cos(ang)*cr, my + Math.sin(ang)*cr, 1.5, 0, Math.PI*2);
+      rctx.fillStyle = `rgba(255,255,255,${0.35 + 0.15*Math.sin(rf*0.06+k)})`;
       rctx.fill();
     }
     rf++;
@@ -250,81 +449,46 @@ function drawRipple(){
 }
 requestAnimationFrame(drawRipple);
 
-// Audio Engine
-class NeuroAudioEngine{
-  constructor(){this.ctx=null;this.analyser=null;this.masterGain=null;this.sources=[];this.isPlaying=false;this.mode=null;this.intensity=0.5;this.volume=0.8;this.nextStart=0;this.chunkOffset=0;this.genId=0;this.schedTimer=null;this.LOOKAHEAD=3;}
-  async _ensureCtx(){if(!this.ctx){this.ctx=new(window.AudioContext||window.webkitAudioContext)();this.analyser=this.ctx.createAnalyser();this.analyser.fftSize=2048;this.masterGain=this.ctx.createGain();this.masterGain.gain.value=this.volume;this.masterGain.connect(this.analyser);this.analyser.connect(this.ctx.destination);}if(this.ctx.state==='suspended')await this.ctx.resume();}
-  _clearSources(g){this.genId=g;this.sources.forEach(s=>{try{s.stop(0)}catch(e){}});this.sources=[];if(this.schedTimer){clearInterval(this.schedTimer);this.schedTimer=null;}}
-  async _fetchChunk(g,offset){if(g!==this.genId)return null;try{const r=await fetch(`/chunk/${this.mode}?t=${offset}&intensity=${this.intensity}`);if(!r.ok)return null;if(g!==this.genId)return null;const ab=await r.arrayBuffer();if(g!==this.genId)return null;return await this.ctx.decodeAudioData(ab);}catch(e){console.warn(e);return null;}}
-  async _schedule(g,offset){const buf=await this._fetchChunk(g,offset);if(!buf||g!==this.genId)return;const src=this.ctx.createBufferSource();src.buffer=buf;src.connect(this.masterGain);src.onended=()=>{this.sources=this.sources.filter(s=>s!==src);};const at=Math.max(this.nextStart,this.ctx.currentTime+0.05);src.start(at);this.nextStart=at+buf.duration;this.chunkOffset=offset+CHUNK_DURATION;this.sources.push(src);}
-  _startScheduler(g){this.schedTimer=setInterval(async()=>{if(g!==this.genId||!this.isPlaying)return;if(this.nextStart-this.ctx.currentTime<this.LOOKAHEAD)await this._schedule(g,this.chunkOffset);},700);}
-  async play(mode,ni=null){await this._ensureCtx();if(ni!==null)this.intensity=ni;this.mode=mode;this.isPlaying=true;const g=++this.genId;this._clearSources(g);this.nextStart=this.ctx.currentTime+0.12;this.chunkOffset=0;await this._schedule(g,0);await this._schedule(g,CHUNK_DURATION);if(g===this.genId)this._startScheduler(g);}
-  stop(){this.isPlaying=false;this._clearSources(this.genId+1);if(this.masterGain&&this.ctx){this.masterGain.gain.setTargetAtTime(0,this.ctx.currentTime,0.15);setTimeout(()=>{if(this.masterGain)this.masterGain.gain.value=this.volume;},600);}}
-  setVolume(v){this.volume=v;if(this.masterGain&&this.ctx)this.masterGain.gain.setTargetAtTime(v,this.ctx.currentTime,0.05);}
-  async setIntensity(v){this.intensity=v;if(this.isPlaying&&this.mode)await this.play(this.mode);}
-}
-const engine=new NeuroAudioEngine();
-
-async function togglePlay(){
-  isPlaying=!isPlaying;
-  const btn=document.getElementById('play-btn');
-  const path=document.getElementById('icon-path');
-  btn.classList.toggle('playing',isPlaying);
-  if(isPlaying){path.setAttribute('d','M7 4H12V24H7V4ZM16 4H21V24H16V4Z');}
-  else{path.setAttribute('d','M8 5.5L22 14L8 22.5V5.5Z');}
-  const pill=document.getElementById('status-pill');
-  const txt=document.getElementById('status-text');
-  pill.classList.toggle('playing',isPlaying);
-  if(isPlaying){
-    txt.textContent=IMAGES[curImg].label.toLowerCase();
-    await engine.play(activeMode,intensity);
-    startImageTimer();
-  } else {
-    txt.textContent='idle';
-    engine.stop();
-    clearInterval(imgTimer);
-    if(pomo.running)pomoStop();
-  }
-}
-
-document.getElementById('play-btn').addEventListener('click',togglePlay);
-document.getElementById('volume-slider').addEventListener('input',e=>{
-  volume=parseFloat(e.target.value);engine.setVolume(volume);
-  document.getElementById('vol-val').textContent=Math.round(volume*100)+'%';
-});
-let intDebounce;
-document.getElementById('intensity-slider').addEventListener('input',e=>{
-  intensity=parseFloat(e.target.value);
-  document.getElementById('int-val').textContent=Math.round(intensity*100)+'%';
-  clearTimeout(intDebounce);intDebounce=setTimeout(()=>engine.setIntensity(intensity),600);
-});
-
-// Pomodoro
-const pomo={running:false,phase:'work',elapsed:0,sessions:0,timer:null,workDur:25*60,breakDur:5*60,longDur:15*60};
-const CIRC=282.7;
-function pomoDur(){return pomo.phase==='work'?pomo.workDur:pomo.phase==='break'?pomo.breakDur:pomo.longDur;}
+// ── Pomodoro ──────────────────────────────────────────────────
+const pomo = { running:false, phase:'work', elapsed:0, sessions:0, timer:null, workDur:25*60, breakDur:5*60, longDur:15*60 };
+const CIRC = 282.7;
+function pomoDur(){ return pomo.phase==='work'?pomo.workDur:pomo.phase==='break'?pomo.breakDur:pomo.longDur; }
 function pomoUpdateUI(){
-  const dur=pomoDur(),rem=dur-pomo.elapsed;
-  document.getElementById('pomo-time').textContent=String(Math.floor(rem/60)).padStart(2,'0')+':'+String(rem%60).padStart(2,'0');
-  document.getElementById('pomo-phase-label').textContent=pomo.phase==='work'?'work':'rest';
-  document.getElementById('pomo-progress').style.strokeDashoffset=CIRC*(1-pomo.elapsed/dur);
-  const dots=document.getElementById('pomo-dots');dots.innerHTML='';
+  const dur=pomoDur(), rem=dur-pomo.elapsed;
+  document.getElementById('pomo-time').textContent = String(Math.floor(rem/60)).padStart(2,'0')+':'+String(rem%60).padStart(2,'0');
+  document.getElementById('pomo-phase-label').textContent = pomo.phase==='work'?'work':'rest';
+  document.getElementById('pomo-progress').style.strokeDashoffset = CIRC*(1-pomo.elapsed/dur);
+  const dots=document.getElementById('pomo-dots'); dots.innerHTML='';
   for(let i=0;i<4;i++){const d=document.createElement('div');d.className='pomo-dot'+(i<pomo.sessions%4?' done':'');dots.appendChild(d);}
 }
 function pomoAdvance(){
-  if(pomo.phase==='work'){pomo.sessions++;pomo.elapsed=0;pomo.phase=pomo.sessions%4===0?'longbreak':'break';if(isPlaying)engine.play(pomo.phase==='longbreak'?'meditate':'relax',intensity);pomoNotify('Rest!');}
-  else{pomo.elapsed=0;pomo.phase='work';if(isPlaying)engine.play(activeMode,intensity);pomoNotify('Back to work!');}
+  if(pomo.phase==='work'){
+    pomo.sessions++;pomo.elapsed=0;
+    pomo.phase=pomo.sessions%4===0?'longbreak':'break';
+    if(isPlaying && ytReady) ytPlayer.pauseVideo();
+    pomoNotify('Rest time! Take a break.');
+  } else {
+    pomo.elapsed=0;pomo.phase='work';
+    if(ytReady) ytPlayer.playVideo();
+    pomoNotify('Back to work!');
+  }
   pomoUpdateUI();
 }
 function pomoStart(){
   if(pomo.running){clearInterval(pomo.timer);pomo.running=false;document.getElementById('pomo-start').textContent='Resume';}
-  else{if(!isPlaying)togglePlay();pomo.running=true;pomo.timer=setInterval(()=>{pomo.elapsed++;pomo.elapsed>=pomoDur()?pomoAdvance():pomoUpdateUI();},1000);document.getElementById('pomo-start').textContent='Pause';}
+  else{
+    if(!isPlaying) togglePlay();
+    pomo.running=true;
+    pomo.timer=setInterval(()=>{pomo.elapsed++;pomo.elapsed>=pomoDur()?pomoAdvance():pomoUpdateUI();},1000);
+    document.getElementById('pomo-start').textContent='Pause';
+  }
 }
 function pomoStop(){clearInterval(pomo.timer);pomo.running=false;}
-function pomoReset(){pomoStop();pomo.elapsed=0;pomo.phase='work';pomo.sessions=0;document.getElementById('pomo-start').textContent='Start';pomoUpdateUI();if(isPlaying)engine.play(activeMode,intensity);}
+function pomoReset(){pomoStop();pomo.elapsed=0;pomo.phase='work';pomo.sessions=0;document.getElementById('pomo-start').textContent='Start';pomoUpdateUI();}
 function pomoNotify(msg){if('Notification'in window&&Notification.permission==='granted')new Notification('MyBrainFM',{body:msg});}
-document.getElementById('pomo-start').addEventListener('click',pomoStart);
-document.getElementById('pomo-reset').addEventListener('click',pomoReset);
+
+document.getElementById('pomo-start').addEventListener('click', pomoStart);
+document.getElementById('pomo-reset').addEventListener('click', pomoReset);
 ['work','break','long'].forEach(t=>{
   const el=document.getElementById('pomo-'+t);
   el.addEventListener('input',()=>{
@@ -344,6 +508,7 @@ document.getElementById('pomo-toggle-btn').addEventListener('click',()=>{
   if(hidden&&pomo.running)pomoStop();
 });
 
+// ── Init ──────────────────────────────────────────────────────
 buildSlides();
 pomoUpdateUI();
 </script>
