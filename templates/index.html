@@ -274,18 +274,69 @@
     .pset-lbl { font-family:var(--head); font-size:0.6rem; font-weight:600; color:var(--text-2); letter-spacing:0.06em; white-space:nowrap }
     .pset input[type=range] { max-width:90px }
 
-    /* ── Mobile ─────────────────────────────────── */
+    /* ── Tablet (601–900px) ──────────────────────── */
+    @media(min-width:601px) and (max-width:900px) {
+      #ui { padding:20px 22px 24px }
+      .logo { font-size:1.35rem }
+      #pill { max-width:180px }
+      #pill-txt { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+      #label { font-size:clamp(1.2rem,3vw,2.2rem); letter-spacing:0.4em }
+      #player { gap:14px; padding:14px 18px }
+      #play { width:52px; height:52px }
+      #pomo { width:280px; right:22px; bottom:104px }
+    }
+
+    /* ── Mobile (≤600px) ─────────────────────────── */
     @media(max-width:600px) {
-      #ui { padding:16px 14px 18px }
+      #ui { padding:env(safe-area-inset-top,14px) 14px 18px }
+
+      /* Header — hide pill, compact logo + timer */
       #pill { display:none }
-      .logo { font-size:1.2rem }
-      #timer-btn { padding:7px 12px; font-size:0.75rem }
-      #label { font-size:1rem; letter-spacing:0.25em }
-      #player { gap:10px; padding:12px 14px }
-      .ctrl { width:32px; height:32px }
-      #play { width:48px; height:48px }
-      .div { height:28px }
-      #pomo { width:calc(100vw - 28px); right:14px; left:14px; bottom:96px; padding:16px }
+      .logo { font-size:1.15rem; letter-spacing:0.06em }
+      #timer-btn { padding:7px 11px; font-size:0.7rem; letter-spacing:0.04em }
+
+      /* Center label */
+      #label { font-size:0.9rem; letter-spacing:0.22em }
+
+      /* Player — single row, everything fits */
+      #player {
+        gap:8px; padding:11px 12px; border-radius:3px;
+        /* Ensure it never overflows */
+        flex-wrap:nowrap; overflow:hidden;
+      }
+      .ctrl { width:32px; height:32px; flex-shrink:0 }
+      .ctrl svg { width:12px; height:12px }
+      #play { width:46px; height:46px; flex-shrink:0 }
+      #play svg { width:18px; height:18px }
+      .div { height:26px; flex-shrink:0 }
+      .vol-lbl { font-size:0.55rem }
+      .vol-wrap { min-width:0; flex:1 }
+
+      /* Pomodoro — full width, above player */
+      #pomo {
+        width:calc(100vw - 28px);
+        left:14px; right:14px;
+        bottom:90px;
+        padding:16px;
+        border-radius:3px;
+      }
+      .pb { gap:12px }
+      .pr { width:80px; height:80px; flex-shrink:0 }
+      .pr svg { width:80px; height:80px }
+      #ptime { font-size:0.9rem }
+      .psets { gap:6px }
+      .pset input[type=range] { max-width:80px }
+    }
+
+    /* ── Very small (≤380px) ─────────────────────── */
+    @media(max-width:380px) {
+      .logo { font-size:1rem }
+      #timer-btn { padding:6px 9px; font-size:0.65rem }
+      #player { gap:6px; padding:10px 10px }
+      #play { width:42px; height:42px }
+      .ctrl { width:28px; height:28px }
+      .ctrl svg { width:11px; height:11px }
+      #label { font-size:0.75rem; letter-spacing:0.18em }
     }
   </style>
 </head>
