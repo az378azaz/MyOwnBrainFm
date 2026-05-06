@@ -3,340 +3,633 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>MyBrainFM</title>
-  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=DM+Sans:wght@200;300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <title>MyBrainFM — Neural Focus Station</title>
+
+  <!-- Fonts: Orbitron (display), JetBrains Mono (data/body), Oxanium (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@300;400;500;700&family=Oxanium:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
 
+    /* ── Adaptive scaling (from PieterKoopt) ─────────────── */
     :root {
-      --cyan:    #00d4ff;
-      --cyan-2:  #0090cc;
-      --red:     #ff3c3c;
-      --amber:   #ffaa00;
-      --glow:    rgba(0,212,255,0.22);
-      --surface: rgba(4,8,20,0.78);
-      --glass:   rgba(0,212,255,0.05);
-      --border:  rgba(0,212,255,0.14);
-      --border-h:rgba(0,212,255,0.35);
-      --text:    #cde8f0;
-      --text-2:  rgba(180,220,235,0.5);
-      --font:    'DM Sans', sans-serif;
-      --head:    'Rajdhani', sans-serif;
-      --mono:    'Space Mono', monospace;
+      --size-unit: 16;
+      --size-container-ideal: 1440;
+      --size-container-min: 320px;
+      --size-container-max: 1600px;
+      --size-container: clamp(var(--size-container-min), 100vw, var(--size-container-max));
+      --size-font: calc(var(--size-container) / (var(--size-container-ideal) / var(--size-unit)));
+
+      /* Palette */
+      --cyan:     #00d4ff;
+      --cyan-2:   #0090cc;
+      --cyan-3:   #006699;
+      --green:    #00ff9d;
+      --amber:    #ffb340;
+      --red:      #ff3c3c;
+      --glow:     rgba(0,212,255,0.22);
+      --glow-g:   rgba(0,255,157,0.18);
+      --surface:  rgba(4,8,20,0.84);
+      --surface-2:rgba(4,10,24,0.92);
+      --glass:    rgba(0,212,255,0.04);
+      --border:   rgba(0,212,255,0.12);
+      --border-h: rgba(0,212,255,0.32);
+      --text:     #cde8f0;
+      --text-2:   rgba(180,220,235,0.45);
+      --text-3:   rgba(180,220,235,0.2);
+
+      /* Typography */
+      --font:  'Oxanium', sans-serif;
+      --head:  'Orbitron', sans-serif;
+      --mono:  'JetBrains Mono', monospace;
+
+      /* Easing (PieterKoopt) */
+      --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+      --ease-in-out:   cubic-bezier(0.625, 0.05, 0, 1);
+      /* Dynamic scene vars */
+      --grain-opacity: 0.028;
+      --cursor-glow:   rgba(0,212,255,0.30);
     }
 
-    html, body { width:100%; height:100%; overflow:hidden; background:#010409 }
-    body { font-family:var(--font); color:var(--text) }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #010409 }
+    body { font-family: var(--font); color: var(--text); font-size: var(--size-font) }
 
-    /* ── Hidden YouTube ──────────────────────────── */
-    #yt { position:fixed; width:1px; height:1px; top:-9999px; left:-9999px; pointer-events:none; z-index:-1 }
+    button { all: unset; cursor: pointer; pointer-events: auto }
+    button:focus { outline: 2px solid var(--border-h); outline-offset: 2px }
 
-    /* ── Background image ───────────────────────── */
+    /* ── Hidden YouTube ──────────────────────────────────── */
+    #yt { position: fixed; width: 1px; height: 1px; top: -9999px; left: -9999px; pointer-events: none; z-index: -1 }
+
+    /* ── Background ──────────────────────────────────────── */
     #bg {
-      position:fixed; inset:0; z-index:0;
-      background: url('/static/images/cyberpunk_room.jpg') center/cover no-repeat;
-      transform: translateZ(0);
+      position: fixed; inset: 0; z-index: 0;
+      background: url('static/images/cyberpunk_room.jpg') center / cover no-repeat;
+      transform: scale(1.04) translate(0px,0px);
+      will-change: transform;
+      transition: transform 0.09s linear;
+    }
+    /* ── Scene tint overlay ───────────────────────────────── */
+    #tint {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background: transparent;
+      transition: background 1.5s ease;
     }
 
-    /* ── Rain canvas — perfectly aligned ────────── */
-    /* position:fixed + inset:0 = always exactly covers viewport, never misaligns */
-    #rain {
-      position:fixed; inset:0; z-index:1;
-      pointer-events:none;
-      opacity:0.55;
-    }
+    /* ── Rain canvas ─────────────────────────────────────── */
+    #rain { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0.5 }
 
-    /* ── Wet glass overlay ──────────────────────── */
+    /* ── Cinematic overlays ──────────────────────────────── */
     #wet {
-      position:fixed; inset:0; z-index:2; pointer-events:none;
-      background:
-        linear-gradient(180deg,
-          rgba(0,30,50,0.30) 0%,
-          transparent 30%,
-          transparent 65%,
-          rgba(0,15,30,0.55) 100%
-        );
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      background: linear-gradient(180deg,
+        rgba(0,20,40,0.38) 0%,
+        transparent 28%,
+        transparent 62%,
+        rgba(0,10,24,0.65) 100%
+      );
     }
-    /* Subtle scanline texture — cinematic feel */
     #wet::after {
-      content:'';
-      position:absolute; inset:0;
+      content: ''; position: absolute; inset: 0;
       background: repeating-linear-gradient(
         0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.03) 2px,
-        rgba(0,0,0,0.03) 4px
+        transparent, transparent 2px,
+        rgba(0,0,0,0.025) 2px, rgba(0,0,0,0.025) 4px
       );
-      pointer-events:none;
+      pointer-events: none;
     }
 
-    /* ── WebGL Spotlight ────────────────────────── */
-    #spotlight {
-      position:fixed; inset:0; z-index:3;
-      pointer-events:none;
-      mix-blend-mode:screen;
-      opacity:0.5;
+    /* ── Grain overlay (PieterKoopt-inspired) ────────────── */
+    #grain {
+      position: fixed; inset: 0; z-index: 3; pointer-events: none;
+      opacity: var(--grain-opacity);
+      transition: opacity 1.5s ease;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+      background-size: 180px 180px;
     }
 
-    /* ── UI shell ───────────────────────────────── */
+    /* ── Custom Cursor ───────────────────────────────────── */
+    html, body { cursor: none !important }
+    #cursor-dot {
+      position: fixed; z-index: 9999; pointer-events: none;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--cyan);
+      transform: translate(-50%,-50%);
+      transition: width .12s var(--ease-out-expo), height .12s var(--ease-out-expo), opacity .12s;
+      box-shadow: 0 0 8px var(--cyan);
+      will-change: left, top;
+    }
+    #cursor-ring {
+      position: fixed; z-index: 9998; pointer-events: none;
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 1.5px solid var(--cyan);
+      transform: translate(-50%,-50%);
+      transition: width .22s var(--ease-out-expo), height .22s var(--ease-out-expo),
+                  border-color .22s, box-shadow .22s, opacity .22s;
+      box-shadow: 0 0 12px var(--cursor-glow), inset 0 0 8px var(--cursor-glow);
+      will-change: left, top;
+    }
+    #cursor-ring::after {
+      content: ''; position: absolute;
+      top: 50%; left: 50%;
+      width: 60%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      transform-origin: left center;
+      animation: cursor-sweep 2.4s linear infinite;
+      transform: rotate(0deg) translateX(-50%);
+    }
+    @keyframes cursor-sweep { to { transform: rotate(360deg) translateX(-50%); } }
+    body.c-hover #cursor-ring {
+      width: 50px; height: 50px;
+      border-color: var(--cyan);
+      box-shadow: 0 0 22px var(--cursor-glow), inset 0 0 14px var(--cursor-glow);
+    }
+    body.c-hover #cursor-dot { width: 4px; height: 4px; opacity: 0.5; }
+    body.c-click #cursor-ring {
+      width: 64px; height: 64px; opacity: 0;
+      transition-duration: .25s;
+    }
+    body.c-click #cursor-dot { width: 10px; height: 10px; }
+    @media (prefers-reduced-motion: reduce) { #cursor-ring::after { animation: none; } }
+
+    /* ── UI shell ────────────────────────────────────────── */
     #ui {
-      position:fixed; inset:0; z-index:10;
-      display:flex; flex-direction:column;
-      justify-content:space-between;
-      padding:24px 28px 28px;
-      pointer-events:none;
+      position: fixed; inset: 0; z-index: 10;
+      display: flex; flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 28px 28px;
+      pointer-events: none;
     }
 
-    /* ── Header ─────────────────────────────────── */
-    #top {
-      display:flex; align-items:center; justify-content:space-between;
-      pointer-events:all;
-      animation: hdr-in 0.9s 0.1s cubic-bezier(0.4,0,0.2,1) both;
+    /* ─── CHARACTER STAGGER SYSTEM (PieterKoopt) ─────────── */
+    .btn-cs {
+      overflow: hidden; position: relative; display: inline-flex;
+      align-items: center; cursor: pointer;
     }
-    @keyframes hdr-in { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:none} }
+    .btn-cs [data-cs] {
+      overflow: hidden; position: relative; display: inline-block;
+    }
+    .btn-cs [data-cs] span {
+      display: inline-block; position: relative;
+      text-shadow: 0px 1.4em currentColor;
+      transform: translateY(0em) rotate(0.001deg);
+      transition: transform 0.55s var(--ease-out-expo);
+    }
+    .btn-cs:hover [data-cs] span {
+      transform: translateY(-1.4em) rotate(0.001deg);
+    }
+
+    /* Button bg fill that shrinks on hover */
+    .btn-cs .cs-bg {
+      position: absolute; inset: 0;
+      transition: inset 0.55s var(--ease-out-expo);
+      background: var(--glass);
+      border-radius: inherit;
+    }
+    .btn-cs:hover .cs-bg { inset: 0.1em }
+
+    /* ── HOVER SPOTLIGHT (PieterKoopt) ───────────────────── */
+    /* Applied via JS — siblings get opacity:0.4 on hover */
+
+    /* ── Header ──────────────────────────────────────────── */
+    #top {
+      display: flex; align-items: center; justify-content: space-between;
+      pointer-events: all;
+      animation: clip-in-top 0.9s 0.1s var(--ease-out-expo) both;
+    }
+    @keyframes clip-in-top {
+      from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(-8px) }
+      to   { opacity: 1; clip-path: inset(0 0 0% 0);   transform: none }
+    }
 
     .logo {
-      font-family:var(--head); font-weight:700; font-size:1.55rem;
-      letter-spacing:0.08em; text-transform:uppercase; color:var(--text);
-      text-shadow: 0 0 20px rgba(0,212,255,0.4);
+      font-family: var(--head); font-weight: 700; font-size: 1.5rem;
+      letter-spacing: 0.09em; text-transform: uppercase; color: var(--text);
+      text-shadow: 0 0 22px rgba(0,212,255,0.35);
+      display: flex; align-items: center; gap: 0;
+      user-select: none;
     }
-    .logo b { color:var(--cyan); font-weight:700 }
+    .logo-brain { color: var(--text) }
+    .logo-fm    { color: var(--cyan); font-weight: 700 }
+    .logo-reg   { color: var(--text-2); font-size: 0.55em; vertical-align: super; margin-left: 1px }
 
-    /* Live status indicator */
+    /* Live pill */
     #pill {
-      display:flex; align-items:center; gap:7px;
-      font-family:var(--mono); font-size:0.56rem;
-      letter-spacing:0.12em; text-transform:uppercase;
-      color:var(--text-2); background:var(--surface);
-      backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-      border:1px solid var(--border); border-radius:3px;
-      padding:6px 12px; transition:all 0.4s;
+      display: flex; align-items: center; gap: 8px;
+      font-family: var(--mono); font-size: 0.55rem;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--text-2); background: var(--surface);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border); border-radius: 2px;
+      padding: 6px 12px; transition: all 0.35s;
+    }
+    #pill .eq-mini { display: flex; align-items: flex-end; gap: 2px; height: 10px; margin-right: 2px }
+    #pill .eq-mini .b {
+      width: 2px; height: 3px; background: var(--text-3);
+      border-radius: 1px; flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    #pill.on .eq-mini .b {
+      background: var(--cyan);
+      animation: eq-mini-bar 0.7s ease-in-out infinite alternate;
+    }
+    #pill.on .eq-mini .b:nth-child(1) { animation-delay: 0s;    animation-duration: 0.5s }
+    #pill.on .eq-mini .b:nth-child(2) { animation-delay: 0.1s;  animation-duration: 0.7s }
+    #pill.on .eq-mini .b:nth-child(3) { animation-delay: 0.05s; animation-duration: 0.6s }
+    #pill.on .eq-mini .b:nth-child(4) { animation-delay: 0.15s; animation-duration: 0.8s }
+    @keyframes eq-mini-bar {
+      from { height: 2px }
+      to   { height: 10px }
     }
     #pill .dot {
-      width:5px; height:5px; border-radius:50%;
-      background:var(--text-2); flex-shrink:0; transition:all 0.3s;
+      width: 5px; height: 5px; border-radius: 50%;
+      background: var(--text-3); flex-shrink: 0; transition: all 0.3s;
     }
-    #pill.on .dot { background:var(--cyan); box-shadow:0 0 8px var(--cyan); animation:blink 2s infinite }
-    #pill.on { color:var(--text); border-color:var(--border-h) }
-    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    #pill.on { color: var(--text); border-color: var(--border-h) }
+    #pill.on .dot { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); animation: blink 2.2s infinite }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.25} }
 
+    /* Timer button — char stagger */
     #timer-btn {
-      background:var(--surface); backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-      border:1px solid var(--border); border-radius:3px;
-      padding:8px 16px; color:var(--text-2);
-      font-family:var(--head); font-size:0.85rem; font-weight:600;
-      letter-spacing:0.06em; text-transform:uppercase;
-      cursor:pointer; transition:all 0.2s;
+      background: var(--surface); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border); border-radius: 2px;
+      padding: 8px 16px; color: var(--text-2);
+      font-family: var(--head); font-size: 0.8rem; font-weight: 600;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      transition: border-color 0.25s, color 0.25s, box-shadow 0.25s;
     }
-    #timer-btn:hover { border-color:var(--border-h); color:var(--cyan); box-shadow:0 0 12px var(--glow) }
-    #timer-btn.on  { border-color:var(--cyan); color:var(--cyan); box-shadow:0 0 14px var(--glow) }
+    #timer-btn:hover { border-color: var(--border-h); color: var(--cyan); box-shadow: 0 0 14px var(--glow) }
+    #timer-btn.on    { border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 16px var(--glow) }
 
-    /* ── Center ─────────────────────────────────── */
-    #center { flex:1; display:flex; align-items:center; justify-content:center; pointer-events:none }
+    /* ── Scene selector ──────────────────────────────────── */
+    #scenes {
+      display: flex; gap: 8px; pointer-events: all;
+      animation: clip-in-top 0.9s 0.25s var(--ease-out-expo) both;
+    }
+
+    .scene {
+      position: relative; flex: 1;
+      background: var(--surface); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border); border-radius: 2px;
+      padding: 10px 14px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: border-color 0.3s, box-shadow 0.3s, opacity 0.3s;
+      overflow: hidden; min-width: 0;
+    }
+    .scene::before {
+      content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--scene-color, var(--cyan)), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .scene:hover::before,
+    .scene.on::before { opacity: 0.5 }
+    .scene:hover { border-color: var(--border-h); box-shadow: 0 0 16px var(--glow) }
+    .scene.on {
+      border-color: var(--scene-color, var(--cyan));
+      box-shadow: 0 0 18px rgba(0,212,255,0.15);
+    }
+    .scene-name {
+      font-family: var(--head); font-size: 0.75rem; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-2);
+      transition: color 0.3s;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      max-width: 100%;
+    }
+    .scene:hover .scene-name,
+    .scene.on .scene-name { color: var(--text) }
+
+    /* ── Center ──────────────────────────────────────────── */
+    #center { flex: 1; display: flex; align-items: center; justify-content: center; pointer-events: none }
     #label {
-      font-family:var(--head); font-weight:300; font-size:clamp(1.4rem,4vw,3.2rem);
-      letter-spacing:0.55em; text-transform:uppercase; text-indent:0.55em;
-      color:rgba(0,212,255,0.08);
-      text-shadow:0 0 60px rgba(0,212,255,0.05);
-      animation:label-in 2.5s 1s both; user-select:none;
+      font-family: var(--head); font-weight: 300; font-size: clamp(1.2rem,4vw,3.5rem);
+      letter-spacing: 0.6em; text-transform: uppercase; text-indent: 0.6em;
+      color: rgba(0,212,255,0.07);
+      text-shadow: 0 0 80px rgba(0,212,255,0.04);
+      animation: label-in 3s 1.2s both; user-select: none;
     }
     @keyframes label-in { from{opacity:0} to{opacity:1} }
 
-    /* ── Player bar ─────────────────────────────── */
+    /* ── Player bar ──────────────────────────────────────── */
     #player {
-      display:flex; align-items:center; gap:18px;
-      background:var(--surface);
-      backdrop-filter:blur(32px) saturate(160%); -webkit-backdrop-filter:blur(32px) saturate(160%);
-      border:1px solid var(--border);
-      border-top:1px solid rgba(0,212,255,0.22);
-      border-radius:4px;
-      padding:16px 22px;
-      pointer-events:all;
-      animation:bar-in 0.9s 0.3s cubic-bezier(0.4,0,0.2,1) both;
-      box-shadow:
-        0 -2px 0 rgba(0,212,255,0.08),
-        0 -20px 60px rgba(0,0,0,0.5),
-        inset 0 1px 0 rgba(0,212,255,0.06);
-      position:relative; overflow:hidden;
+      display: flex; align-items: center; gap: 16px;
+      background: var(--surface);
+      backdrop-filter: blur(36px) saturate(160%); -webkit-backdrop-filter: blur(36px) saturate(160%);
+      border: 1px solid var(--border);
+      border-top: 1px solid rgba(0,212,255,0.2);
+      border-radius: 3px;
+      padding: 14px 20px;
+      pointer-events: all;
+      animation: clip-in-bottom 0.9s 0.4s var(--ease-out-expo) both;
+      box-shadow: 0 -2px 0 rgba(0,212,255,0.06), 0 -24px 60px rgba(0,0,0,0.55), inset 0 1px 0 rgba(0,212,255,0.05);
+      position: relative; overflow: hidden;
     }
-    /* Cyan top edge glow */
     #player::before {
-      content:'';
-      position:absolute; top:0; left:10%; right:10%; height:1px;
-      background:linear-gradient(90deg, transparent, var(--cyan), transparent);
-      opacity:0.4;
+      content: ''; position: absolute; top: 0; left: 8%; right: 8%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0.35;
     }
-    @keyframes bar-in { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+    @keyframes clip-in-bottom {
+      from { opacity: 0; clip-path: inset(100% 0 0 0); transform: translateY(10px) }
+      to   { opacity: 1; clip-path: inset(0 0 0 0);    transform: none }
+    }
+
+    /* Track info */
+    .track-info {
+      display: flex; flex-direction: column; gap: 3px;
+      min-width: 0; flex: 0 0 auto; max-width: 200px;
+    }
+    .track-label {
+      font-family: var(--mono); font-size: 0.44rem; color: var(--text-3);
+      letter-spacing: 0.12em; text-transform: uppercase;
+    }
+    .track-title {
+      font-family: var(--font); font-size: 0.7rem; font-weight: 500;
+      color: var(--text-2); white-space: nowrap; overflow: hidden;
+      position: relative;
+    }
+    .track-title.scrolling { animation: marquee 12s linear infinite }
+    @keyframes marquee { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+
+    /* Divider */
+    .div { width: 1px; height: 32px; background: var(--border); flex-shrink: 0 }
 
     /* Control buttons */
     .ctrl {
-      width:36px; height:36px; border-radius:2px;
-      background:rgba(0,212,255,0.04); border:1px solid var(--border);
-      cursor:pointer; display:flex; align-items:center; justify-content:center;
-      flex-shrink:0; color:var(--text-2); transition:all 0.2s;
+      width: 34px; height: 34px; border-radius: 2px;
+      background: rgba(0,212,255,0.04); border: 1px solid var(--border);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; color: var(--text-2);
+      transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
     }
-    .ctrl:hover { background:rgba(0,212,255,0.1); color:var(--cyan); border-color:var(--border-h); box-shadow:0 0 10px var(--glow) }
-    .ctrl svg { width:14px; height:14px }
+    .ctrl:hover { background: rgba(0,212,255,0.1); color: var(--cyan); border-color: var(--border-h); box-shadow: 0 0 10px var(--glow) }
+    .ctrl svg { width: 13px; height: 13px }
 
     /* Play button */
     #play {
-      width:56px; height:56px; border-radius:3px; flex-shrink:0;
-      background:linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,144,204,0.08));
-      border:1px solid var(--cyan-2);
-      cursor:pointer; display:flex; align-items:center; justify-content:center;
-      transition:all 0.25s;
-      box-shadow:0 0 20px var(--glow), inset 0 1px 0 rgba(0,212,255,0.2);
-      position:relative; overflow:hidden;
+      width: 54px; height: 54px; border-radius: 2px; flex-shrink: 0;
+      background: linear-gradient(135deg, rgba(0,212,255,0.14), rgba(0,144,204,0.07));
+      border: 1px solid var(--cyan-2);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+      box-shadow: 0 0 22px var(--glow), inset 0 1px 0 rgba(0,212,255,0.18);
+      position: relative; overflow: hidden;
     }
     #play::after {
-      content:''; position:absolute; inset:0;
-      background:linear-gradient(135deg, rgba(0,212,255,0.08), transparent);
-      transition:opacity 0.2s;
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(0,212,255,0.08), transparent);
+      transition: opacity 0.2s;
     }
-    #play:hover { transform:scale(1.05); box-shadow:0 0 30px var(--glow),0 0 50px rgba(0,212,255,0.1); border-color:var(--cyan) }
-    #play.on { border-color:var(--cyan); box-shadow:0 0 24px var(--glow); animation:play-pulse 2.5s ease-in-out infinite }
+    #play:hover { transform: scale(1.04); box-shadow: 0 0 34px var(--glow), 0 0 60px rgba(0,212,255,0.1); border-color: var(--cyan) }
+    #play.on { border-color: var(--cyan); animation: play-pulse 2.8s ease-in-out infinite }
     @keyframes play-pulse {
-      0%,100%{ box-shadow:0 0 24px var(--glow) }
-      50%    { box-shadow:0 0 40px var(--glow),0 0 70px rgba(0,212,255,0.15) }
+      0%,100%{ box-shadow: 0 0 22px var(--glow) }
+      50%    { box-shadow: 0 0 42px var(--glow), 0 0 80px rgba(0,212,255,0.12) }
+    }
+
+    /* EQ bars (5 bars, animated when playing) */
+    #eq {
+      display: flex; align-items: flex-end; gap: 3px; height: 28px;
+      flex-shrink: 0;
+    }
+    #eq .b {
+      width: 3px; border-radius: 1px; background: var(--border);
+      flex-shrink: 0; transition: background 0.4s;
+    }
+    #eq.on .b {
+      background: var(--cyan);
+      filter: drop-shadow(0 0 3px var(--cyan));
+      transition: height 0.07s ease-out, background 0.4s;
     }
 
     /* Volume */
-    .vol-wrap { display:flex; flex-direction:column; gap:6px; flex:1; min-width:0 }
+    .vol-wrap { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0 }
     .vol-lbl {
-      display:flex; justify-content:space-between;
-      font-family:var(--head); font-size:0.65rem; font-weight:600;
-      letter-spacing:0.1em; text-transform:uppercase; color:var(--text-2);
+      display: flex; justify-content: space-between;
+      font-family: var(--mono); font-size: 0.5rem; font-weight: 400;
+      letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2);
     }
-    .vol-lbl span { color:var(--cyan) }
+    .vol-lbl span { color: var(--cyan) }
 
     input[type=range] {
-      -webkit-appearance:none; appearance:none;
-      width:100%; height:2px;
-      background:rgba(0,212,255,0.12); border-radius:1px; outline:none; cursor:pointer;
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 2px;
+      background: rgba(0,212,255,0.1); border-radius: 1px; outline: none; cursor: pointer;
     }
     input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance:none; width:12px; height:12px; border-radius:1px;
-      background:var(--cyan); box-shadow:0 0 8px var(--glow); cursor:pointer;
-      transition:transform 0.15s, box-shadow 0.15s;
+      -webkit-appearance: none; width: 10px; height: 10px; border-radius: 1px;
+      background: var(--cyan); box-shadow: 0 0 8px var(--glow); cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
-    input[type=range]::-webkit-slider-thumb:hover { transform:scale(1.5); box-shadow:0 0 14px var(--glow) }
-    input[type=range]::-moz-range-thumb { width:12px; height:12px; border-radius:1px; background:var(--cyan); border:none; box-shadow:0 0 8px var(--glow) }
+    input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.6); box-shadow: 0 0 16px var(--glow) }
+    input[type=range]::-moz-range-thumb { width: 10px; height: 10px; border-radius: 1px; background: var(--cyan); border: none; box-shadow: 0 0 8px var(--glow) }
 
-    .div { width:1px; height:36px; background:var(--border); flex-shrink:0 }
-
-    /* ── Pomodoro panel ─────────────────────────── */
+    /* ── Pomodoro panel ──────────────────────────────────── */
     #pomo {
-      position:fixed; bottom:110px; right:28px; z-index:20;
-      background:var(--surface); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-      border:1px solid var(--border); border-top:1px solid rgba(0,212,255,0.2);
-      border-radius:4px; padding:22px; width:290px;
-      box-shadow:0 20px 60px rgba(0,0,0,0.6);
-      animation:bar-in 0.3s cubic-bezier(0.4,0,0.2,1) both;
+      position: fixed; bottom: 106px; right: 28px; z-index: 20;
+      background: var(--surface-2); backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+      border: 1px solid var(--border); border-top: 1px solid rgba(0,212,255,0.18);
+      border-radius: 3px; padding: 20px; width: 288px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.7);
+      animation: clip-in-bottom 0.35s var(--ease-out-expo) both;
+      position: fixed;
     }
-    #pomo.hidden { display:none }
+    #pomo.hidden { display: none }
     #pomo::before {
-      content:''; position:absolute; top:0; left:10%; right:10%; height:1px;
-      background:linear-gradient(90deg,transparent,var(--cyan),transparent); opacity:0.35;
+      content: ''; position: absolute; top: 0; left: 10%; right: 10%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent); opacity: 0.3;
     }
 
-    .ph { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px }
-    .pt { font-family:var(--head); font-weight:600; font-size:0.72rem; color:var(--text-2); letter-spacing:0.12em; text-transform:uppercase }
-    .pdots { display:flex; gap:5px }
-    .pd { width:6px; height:6px; border-radius:1px; background:var(--border); transition:background 0.3s }
-    .pd.on { background:var(--cyan); box-shadow:0 0 6px var(--glow) }
+    .ph { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px }
+    .pt {
+      font-family: var(--mono); font-weight: 400; font-size: 0.5rem;
+      color: var(--text-3); letter-spacing: 0.14em; text-transform: uppercase;
+    }
+    .pdots { display: flex; gap: 4px }
+    .pd { width: 6px; height: 6px; border-radius: 1px; background: var(--border); transition: background 0.3s }
+    .pd.on { background: var(--cyan); box-shadow: 0 0 6px var(--glow) }
 
-    .pb { display:flex; align-items:center; gap:18px }
-    .pr { position:relative; flex-shrink:0; width:90px; height:90px }
-    .pr svg { width:90px; height:90px }
-    .ptrack { fill:none; stroke:rgba(0,212,255,0.08); stroke-width:4 }
-    #pp { fill:none; stroke:var(--cyan); stroke-width:4; stroke-linecap:square; stroke-dasharray:226; stroke-dashoffset:0; transform:rotate(-90deg); transform-origin:center; transition:stroke-dashoffset 1s linear; filter:drop-shadow(0 0 4px var(--cyan)) }
-    .pc { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center }
-    #ptime { font-family:var(--mono); font-size:1rem; font-weight:700; color:var(--text) }
-    #pphase { font-family:var(--head); font-size:0.5rem; font-weight:600; color:var(--cyan); letter-spacing:0.15em; text-transform:uppercase; margin-top:2px }
+    .pb { display: flex; align-items: center; gap: 16px }
+    .pr { position: relative; flex-shrink: 0; width: 88px; height: 88px }
+    .pr svg { width: 88px; height: 88px }
+    .ptrack { fill: none; stroke: rgba(0,212,255,0.07); stroke-width: 3.5 }
+    #pp {
+      fill: none; stroke: var(--cyan); stroke-width: 3.5; stroke-linecap: square;
+      stroke-dasharray: 226; stroke-dashoffset: 0;
+      transform: rotate(-90deg); transform-origin: center;
+      transition: stroke-dashoffset 1s linear;
+      filter: drop-shadow(0 0 4px var(--cyan));
+    }
+    .pc { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center }
+    #ptime { font-family: var(--mono); font-size: 1rem; font-weight: 700; color: var(--text) }
+    #pphase { font-family: var(--mono); font-size: 0.45rem; color: var(--cyan); letter-spacing: 0.16em; text-transform: uppercase; margin-top: 3px }
 
-    .pctrl { flex:1 }
-    .pbtns { display:flex; gap:7px; margin-bottom:13px }
+    .pctrl { flex: 1 }
+    .pbtns { display: flex; gap: 6px; margin-bottom: 12px }
     .pbtn {
-      flex:1; padding:8px 0;
-      background:rgba(0,212,255,0.04); border:1px solid var(--border);
-      border-radius:2px; color:var(--text-2);
-      font-family:var(--head); font-weight:600; font-size:0.72rem;
-      letter-spacing:0.06em; text-transform:uppercase;
-      cursor:pointer; transition:all 0.2s;
+      flex: 1; padding: 8px 0;
+      background: rgba(0,212,255,0.03); border: 1px solid var(--border);
+      border-radius: 2px; color: var(--text-2);
+      font-family: var(--head); font-weight: 600; font-size: 0.68rem;
+      letter-spacing: 0.07em; text-transform: uppercase;
+      cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
     }
-    .pbtn:hover { border-color:var(--border-h); color:var(--text) }
-    .pbtn.pri { border-color:var(--cyan); color:var(--cyan) }
-    .pbtn.pri:hover { background:var(--cyan); color:#010409 }
+    .pbtn:hover { border-color: var(--border-h); color: var(--text) }
+    .pbtn.pri { border-color: var(--cyan); color: var(--cyan) }
+    .pbtn.pri:hover { background: var(--cyan); color: #010409 }
 
-    .psets { display:flex; flex-direction:column; gap:7px }
-    .pset { display:flex; align-items:center; justify-content:space-between; gap:10px }
-    .pset-lbl { font-family:var(--head); font-size:0.6rem; font-weight:600; color:var(--text-2); letter-spacing:0.06em; white-space:nowrap }
-    .pset input[type=range] { max-width:90px }
+    .psets { display: flex; flex-direction: column; gap: 6px }
+    .pset { display: flex; align-items: center; justify-content: space-between; gap: 10px }
+    .pset-lbl { font-family: var(--mono); font-size: 0.48rem; color: var(--text-2); letter-spacing: 0.06em; white-space: nowrap }
+    .pset input[type=range] { max-width: 88px }
 
-    /* ── Tablet (601–900px) ──────────────────────── */
+    /* ── Callout text (PieterKoopt pattern) ──────────────── */
+    .callout {
+      font-family: var(--mono); font-size: 0.46rem;
+      color: var(--text-3); letter-spacing: 0.14em; text-transform: uppercase;
+    }
+
+    /* ── Corner decorations ──────────────────────────────── */
+    .corner-decor {
+      position: fixed; pointer-events: none; z-index: 9;
+      width: 18px; height: 18px;
+      border-color: rgba(0,212,255,0.15); border-style: solid;
+    }
+    .corner-decor.tl { top: 14px; left: 14px; border-width: 1px 0 0 1px }
+    .corner-decor.tr { top: 14px; right: 14px; border-width: 1px 1px 0 0 }
+    .corner-decor.bl { bottom: 14px; left: 14px; border-width: 0 0 1px 1px }
+    .corner-decor.br { bottom: 14px; right: 14px; border-width: 0 1px 1px 0 }
+
+    /* ── Tablet ──────────────────────────────────────────── */
     @media(min-width:601px) and (max-width:900px) {
-      #ui { padding:20px 22px 24px }
-      .logo { font-size:1.35rem }
-      #pill { max-width:180px }
-      #pill-txt { max-width:120px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
-      #label { font-size:clamp(1.2rem,3vw,2.2rem); letter-spacing:0.4em }
-      #player { gap:14px; padding:14px 18px }
-      #play { width:52px; height:52px }
-      #pomo { width:280px; right:22px; bottom:104px }
+      #ui { padding: 20px 22px 22px }
+      .logo { font-size: 1.25rem }
+      #pill { max-width: 180px }
+      #pill-txt { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+      #scenes { gap: 6px }
+      .scene { padding: 10px 10px }
+      .scene-name { font-size: 0.65rem; letter-spacing: 0.04em }
+      #player { gap: 12px; padding: 13px 16px }
+      #play { width: 50px; height: 50px }
+      .track-info { max-width: 140px }
+      #pomo { width: 278px; right: 22px; bottom: 100px }
     }
 
-    /* ── Mobile (≤600px) ─────────────────────────── */
+    /* ── Mobile ──────────────────────────────────────────── */
     @media(max-width:600px) {
-      #ui { padding:env(safe-area-inset-top,14px) 14px 18px }
-
-      /* Header — hide pill, compact logo + timer */
-      #pill { display:none }
-      .logo { font-size:1.15rem; letter-spacing:0.06em }
-      #timer-btn { padding:7px 11px; font-size:0.7rem; letter-spacing:0.04em }
-
-      /* Center label */
-      #label { font-size:0.9rem; letter-spacing:0.22em }
-
-      /* Player — single row, everything fits */
+      #ui {
+        padding:
+          max(14px, env(safe-area-inset-top))
+          14px
+          max(16px, env(safe-area-inset-bottom))
+          14px;
+      }
+      #pill { display: none }
+      .logo { font-size: 1.1rem }
+      #timer-btn { padding: 7px 10px; font-size: 0.7rem }
+      #scenes { gap: 4px }
+      .scene { padding: 10px 6px }
+      .scene-name { font-size: 0.58rem; letter-spacing: 0.03em }
+      #label { font-size: 0.85rem; letter-spacing: 0.22em }
       #player {
-        gap:8px; padding:11px 12px; border-radius:3px;
-        /* Ensure it never overflows */
-        flex-wrap:nowrap; overflow:hidden;
+        gap: 8px; padding: 10px 12px;
+        padding-bottom: max(10px, env(safe-area-inset-bottom));
+        flex-wrap: nowrap; overflow: hidden;
       }
-      .ctrl { width:32px; height:32px; flex-shrink:0 }
-      .ctrl svg { width:12px; height:12px }
-      #play { width:46px; height:46px; flex-shrink:0 }
-      #play svg { width:18px; height:18px }
-      .div { height:26px; flex-shrink:0 }
-      .vol-lbl { font-size:0.55rem }
-      .vol-wrap { min-width:0; flex:1 }
-
-      /* Pomodoro — full width, above player */
+      .track-info { display: none }
+      .ctrl { width: 40px; height: 40px; flex-shrink: 0 }
+      .ctrl svg { width: 13px; height: 13px }
+      #play { width: 44px; height: 44px; flex-shrink: 0 }
+      #play svg { width: 17px; height: 17px }
+      #eq { height: 22px }
+      .div { height: 24px; flex-shrink: 0 }
+      .vol-lbl { font-size: 0.46rem }
+      .vol-wrap { min-width: 0; flex: 1 }
+      /* Larger touch target for range slider */
+      input[type=range] { height: 20px; padding: 8px 0 }
+      input[type=range]::-webkit-slider-thumb { width: 18px; height: 18px }
+      input[type=range]::-moz-range-thumb    { width: 18px; height: 18px }
       #pomo {
-        width:calc(100vw - 28px);
-        left:14px; right:14px;
-        bottom:90px;
-        padding:16px;
-        border-radius:3px;
+        width: calc(100vw - 28px); left: 14px; right: 14px;
+        bottom: max(86px, calc(70px + env(safe-area-inset-bottom)));
+        padding: 14px; border-radius: 2px;
       }
-      .pb { gap:12px }
-      .pr { width:80px; height:80px; flex-shrink:0 }
-      .pr svg { width:80px; height:80px }
-      #ptime { font-size:0.9rem }
-      .psets { gap:6px }
-      .pset input[type=range] { max-width:80px }
+      .pb { gap: 12px }
+      .pr { width: 78px; height: 78px; flex-shrink: 0 }
+      .pr svg { width: 78px; height: 78px }
+      #ptime { font-size: 0.88rem }
+      .corner-decor { display: none }
     }
 
-    /* ── Very small (≤380px) ─────────────────────── */
+    /* ─── Keyboard focus rings ───────────────────────────── */
+    :focus-visible {
+      outline: 2px solid var(--cyan);
+      outline-offset: 3px;
+      border-radius: 2px;
+      box-shadow: 0 0 0 4px rgba(0,212,255,0.15);
+    }
+    input[type=range]:focus-visible { outline-offset: 6px }
+
+    /* ─── Active / press feedback ─────────────────────────── */
+    button { touch-action: manipulation }
+    .ctrl:active    { transform: scale(0.88) !important; transition-duration: 0.08s }
+    #play:active    { transform: scale(0.94) !important; transition-duration: 0.08s }
+    .scene:active   { transform: scale(0.97); opacity: 0.85; transition-duration: 0.08s }
+    .pbtn:active    { transform: scale(0.95); transition-duration: 0.08s }
+    #timer-btn:active { transform: scale(0.94); opacity: 0.8; transition-duration: 0.08s }
+
+    /* ─── prefers-reduced-motion ──────────────────────────── */
+    /* ── Boot flash ──────────────────────────────────────── */
+    #boot-flash {
+      position: fixed; inset: 0; z-index: 10000; pointer-events: none;
+      animation: boot-flash 0.7s 0.05s ease-out both;
+    }
+    @keyframes boot-flash {
+      0%   { background: var(--cyan); opacity: 0.13 }
+      30%  { background: var(--cyan); opacity: 0.06 }
+      100% { background: transparent; opacity: 0 }
+    }
+
+    /* ── Scramble text ───────────────────────────────────── */
+    .scramble-init { opacity: 0 }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.15ms !important;
+      }
+      #label { opacity: 1 }
+      #top, #scenes, #player {
+        animation: none !important; opacity: 1 !important;
+        clip-path: none !important; transform: none !important;
+      }
+      #play.on { animation: none !important }
+      #eq.on .b, #pill.on .eq-mini .b, #pill.on .dot { animation: none !important }
+      #boot-flash { animation: none !important; display: none }
+      .scramble-init { opacity: 1 }
+    }
+
+    /* ── Touch: disable sticky hover states ─────────────── */
+    @media (hover: none) {
+      .scene:hover { border-color: var(--border); box-shadow: none }
+      .scene:hover .scene-name { color: var(--text-2) }
+      .scene:hover::before { opacity: 0 }
+      .ctrl:hover { background: rgba(0,212,255,0.04); color: var(--text-2); border-color: var(--border); box-shadow: none }
+      #play:hover { transform: none; box-shadow: 0 0 22px var(--glow) }
+      #timer-btn:hover { border-color: var(--border); color: var(--text-2); box-shadow: none }
+    }
+
     @media(max-width:380px) {
-      .logo { font-size:1rem }
-      #timer-btn { padding:6px 9px; font-size:0.65rem }
-      #player { gap:6px; padding:10px 10px }
-      #play { width:42px; height:42px }
-      .ctrl { width:28px; height:28px }
-      .ctrl svg { width:11px; height:11px }
-      #label { font-size:0.75rem; letter-spacing:0.18em }
+      .logo { font-size: 0.95rem }
+      #timer-btn { padding: 6px 8px; font-size: 0.62rem }
+      #scenes { gap: 3px }
+      .scene { padding: 10px 4px }
+      .scene-name { font-size: 0.50rem; letter-spacing: 0.01em }
+      #player { gap: 6px; padding: 9px 10px }
+      #play { width: 40px; height: 40px }
+      .ctrl { width: 38px; height: 38px }
     }
   </style>
 </head>
@@ -344,52 +637,113 @@
 
 <div id="yt"><div id="yt-player"></div></div>
 
-<!-- Background: single image, fixed, always aligned -->
+<!-- Background layers -->
 <div id="bg"></div>
-
-<!-- Rain canvas: fixed+inset:0, resized in JS, never misaligns -->
+<div id="tint"></div>
+<div id="boot-flash"></div>
 <canvas id="rain"></canvas>
-
-<!-- Cinematic overlay + scanlines -->
 <div id="wet"></div>
+<div id="grain"></div>
+<div id="cursor-dot"></div>
+<div id="cursor-ring"></div>
 
-<!-- WebGL spotlight -->
-<canvas id="spotlight"></canvas>
+<!-- Corner decorations -->
+<div class="corner-decor tl"></div>
+<div class="corner-decor tr"></div>
+<div class="corner-decor bl"></div>
+<div class="corner-decor br"></div>
 
 <!-- UI -->
 <div id="ui">
+
+  <!-- Header -->
   <div id="top">
-    <div class="logo">MyBrain<b>FM</b></div>
-    <div id="pill"><div class="dot"></div><span id="pill-txt">standby</span></div>
-    <button id="timer-btn">⏱ Timer</button>
+    <div class="logo"><span class="logo-brain scramble-init">MyBrain</span><span class="logo-fm scramble-init">FM</span><span class="logo-reg">®</span></div>
+    <div id="pill">
+      <div class="eq-mini">
+        <div class="b"></div><div class="b"></div><div class="b"></div><div class="b"></div>
+      </div>
+      <span id="pill-txt">standby</span>
+    </div>
+    <button id="timer-btn" class="btn-cs" aria-label="Toggle Pomodoro Timer" aria-expanded="false">
+      <span class="cs-bg"></span>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:0.85em;height:0.85em;flex-shrink:0;margin-right:6px;vertical-align:middle"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span data-cs>Timer</span>
+    </button>
   </div>
 
-  <div id="center"><div id="label">Ambience</div></div>
-
-  <div id="player">
-    <button class="ctrl" id="prev-btn" title="Previous">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+  <!-- Scene selector -->
+  <div id="scenes" hover-spotlight="list" role="tablist" aria-label="Music scenes">
+    <button class="scene on btn-cs" data-scene="0" hover-spotlight="item" style="--scene-color:#00d4ff" role="tab" aria-selected="true" aria-label="Neural scene">
+      <div class="scene-name" data-cs>Neural</div>
     </button>
-    <button id="play" title="Play / Pause">
-      <svg id="play-icon" width="22" height="22" viewBox="0 0 28 28" fill="none">
+    <button class="scene btn-cs" data-scene="1" hover-spotlight="item" style="--scene-color:#ffb340" role="tab" aria-selected="false" aria-label="Lo-Fi scene">
+      <div class="scene-name" data-cs>Lo-Fi</div>
+    </button>
+    <button class="scene btn-cs" data-scene="2" hover-spotlight="item" style="--scene-color:#00ff9d" role="tab" aria-selected="false" aria-label="Storm scene">
+      <div class="scene-name" data-cs>Storm</div>
+    </button>
+    <button class="scene btn-cs" data-scene="3" hover-spotlight="item" style="--scene-color:#b06aff" role="tab" aria-selected="false" aria-label="Drift scene">
+      <div class="scene-name" data-cs>Drift</div>
+    </button>
+    <button class="scene btn-cs" data-scene="4" hover-spotlight="item" style="--scene-color:#ff5580" role="tab" aria-selected="false" aria-label="Cipher scene">
+      <div class="scene-name" data-cs>Cipher</div>
+    </button>
+  </div>
+
+  <!-- Center label -->
+  <div id="center"><div id="label" class="scramble-init">Ambience</div></div>
+
+  <!-- Player bar -->
+  <div id="player">
+
+    <!-- Track info -->
+    <div class="track-info">
+      <div class="callout track-label">Now Playing</div>
+      <div class="track-title" id="track-title">— standby —</div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Controls -->
+    <button class="ctrl" id="prev-btn" title="Previous" aria-label="Previous track">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg>
+    </button>
+    <button id="play" title="Play / Pause" aria-label="Play or pause" aria-pressed="false">
+      <svg id="play-icon" width="20" height="20" viewBox="0 0 28 28" fill="none" aria-hidden="true">
         <path id="play-path" d="M8 5.5L22 14L8 22.5V5.5Z" fill="#00d4ff"/>
       </svg>
     </button>
-    <button class="ctrl" id="next-btn" title="Next">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
+    <button class="ctrl" id="next-btn" title="Next" aria-label="Next track">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 18l8.5-6L6 6v12zm2.5-6 5.5 4V8l-5.5 4zM16 6h2v12h-2z"/></svg>
     </button>
+
     <div class="div"></div>
+
+    <!-- EQ bars -->
+    <div id="eq">
+      <div class="b" style="height:6px"></div>
+      <div class="b" style="height:14px"></div>
+      <div class="b" style="height:9px"></div>
+      <div class="b" style="height:18px"></div>
+      <div class="b" style="height:7px"></div>
+    </div>
+
+    <div class="div"></div>
+
+    <!-- Volume -->
     <div class="vol-wrap">
-      <div class="vol-lbl">Volume <span id="vol-val">80%</span></div>
-      <input type="range" id="vol" min="0" max="100" step="1" value="80">
+      <div class="vol-lbl"><span class="callout">Volume</span><span id="vol-val">80%</span></div>
+      <input type="range" id="vol" min="0" max="100" step="1" value="80" aria-label="Volume" aria-valuetext="80%">
     </div>
   </div>
+
 </div>
 
-<!-- Pomodoro -->
+<!-- Pomodoro panel -->
 <div id="pomo" class="hidden">
   <div class="ph">
-    <div class="pt">Pomodoro</div>
+    <div class="pt">Pomodoro Protocol</div>
     <div class="pdots" id="pdots"></div>
   </div>
   <div class="pb">
@@ -416,134 +770,333 @@
 
 <script src="https://www.youtube.com/iframe_api"></script>
 <script>
-// ── YouTube ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// SCRAMBLE TEXT (Sidewave-inspired)
+// ═══════════════════════════════════════════════════════════════
+const GLITCH = '!@#%^&[]|?/\\01ABCDEFabcdef█▓▒░◈◉';
+function scrambleText(el, finalText, duration) {
+  duration = duration || 650;
+  el.style.opacity = '1';
+  const len = finalText.length;
+  const frames = Math.max(20, Math.floor(duration / 16));
+  const revealPerFrame = len / frames;
+  let frame = 0;
+  function tick() {
+    frame++;
+    const revealed = Math.min(len, Math.floor(frame * revealPerFrame));
+    let out = '';
+    for (let i = 0; i < len; i++) {
+      if (i < revealed || finalText[i] === ' ' || finalText[i] === '—') {
+        out += finalText[i];
+      } else {
+        out += GLITCH[Math.floor(Math.random() * GLITCH.length)];
+      }
+    }
+    el.textContent = out;
+    if (revealed < len) requestAnimationFrame(tick);
+    else el.textContent = finalText;
+  }
+  requestAnimationFrame(tick);
+}
+
+// Apply scramble on load
+document.addEventListener('DOMContentLoaded', () => {
+  // Logo chars scramble at t=180ms (after clip-in starts)
+  setTimeout(() => {
+    scrambleText(document.querySelector('.logo-brain'), 'MyBrain', 700);
+    scrambleText(document.querySelector('.logo-fm'),    'FM', 480);
+  }, 180);
+  // Centre label scrambles at t=1300ms (matching its fade-in delay)
+  setTimeout(() => {
+    scrambleText(document.getElementById('label'), 'Ambience', 900);
+  }, 1300);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ORGANIC EQ (noise-driven, replaces CSS animation)
+// ═══════════════════════════════════════════════════════════════
+(function() {
+  const eqBars = document.querySelectorAll('#eq .b');
+  // Per-bar noise params: [freq, phase, baseH, rangeH]
+  const PARAMS = [
+    [1.1,  0.0,  3, 18],  // bass — slow, tall
+    [1.7,  1.2,  3, 16],  // low-mid
+    [2.4,  2.5,  3, 19],  // mid
+    [3.1,  0.8,  3, 14],  // high-mid
+    [4.2,  3.7,  3, 11],  // treble — fast, shorter
+  ];
+
+  function noise(t, freq, phase) {
+    return 0.5 + 0.45 * (
+      Math.sin(t * freq          + phase)       * 0.42 +
+      Math.sin(t * freq * 2.17   + phase * 1.6) * 0.30 +
+      Math.sin(t * freq * 0.67   + phase * 0.4) * 0.28
+    );
+  }
+
+  let t = 0;
+  let eqActive = false;
+
+  function eqTick() {
+    t += 0.018;
+    if (eqActive) {
+      eqBars.forEach((b, i) => {
+        const [freq, phase, base, range] = PARAMS[i];
+        const h = base + range * noise(t, freq, phase);
+        b.style.height = h.toFixed(1) + 'px';
+      });
+    }
+    requestAnimationFrame(eqTick);
+  }
+
+  // Hook into play state via MutationObserver on #eq
+  const eqEl = document.getElementById('eq');
+  new MutationObserver(() => {
+    eqActive = eqEl.classList.contains('on');
+    if (!eqActive) {
+      // Reset to idle heights
+      const idle = [6,14,9,18,7];
+      eqBars.forEach((b, i) => { b.style.height = idle[i] + 'px'; });
+    }
+  }).observe(eqEl, { attributes: true });
+
+  requestAnimationFrame(eqTick);
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// CHARACTER STAGGER (PieterKoopt)
+// ═══════════════════════════════════════════════════════════════
+function initCharStagger() {
+  const inc = 0.012;
+  document.querySelectorAll('[data-cs]').forEach(btn => {
+    const text = btn.textContent;
+    btn.innerHTML = '';
+    [...text].forEach((char, i) => {
+      const s = document.createElement('span');
+      s.textContent = char;
+      s.style.transitionDelay = `${i * inc}s`;
+      if (char === ' ') s.style.whiteSpace = 'pre';
+      btn.appendChild(s);
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', initCharStagger);
+
+// ═══════════════════════════════════════════════════════════════
+// HOVER SPOTLIGHT (PieterKoopt)
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.innerWidth > 600) {
+    document.querySelectorAll('[hover-spotlight="list"] [hover-spotlight="item"]').forEach(item => {
+      item.addEventListener('mouseenter', () => {
+        item.parentNode.querySelectorAll('[hover-spotlight="item"]').forEach(s => {
+          if (s !== item) { s.style.transition = 'opacity 0.3s ease'; s.style.opacity = '0.38'; }
+        });
+      });
+      item.addEventListener('mouseleave', () => {
+        item.parentNode.querySelectorAll('[hover-spotlight="item"]').forEach(s => { s.style.opacity = '1'; });
+      });
+    });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// SCENES
+// ═══════════════════════════════════════════════════════════════
+const SCENES = [
+  { name:'Neural', label:'Ambience', playlist:'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8',
+    cyan:'#00d4ff', glow:'rgba(0,212,255,0.22)', cursor:'rgba(0,212,255,0.30)',
+    rain:1.0,  grain:0.028, tint:'rgba(0,30,55,0)' },
+  { name:'Lo-Fi',  label:'Lo-Fi',    playlist:'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8',
+    cyan:'#ffb340', glow:'rgba(255,179,64,0.22)', cursor:'rgba(255,179,64,0.30)',
+    rain:0.12, grain:0.038, tint:'rgba(32,16,0,0.20)' },
+  { name:'Storm',  label:'Storm',    playlist:'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8',
+    cyan:'#00ff9d', glow:'rgba(0,255,157,0.22)', cursor:'rgba(0,255,157,0.30)',
+    rain:2.6,  grain:0.020, tint:'rgba(0,22,14,0.18)' },
+  { name:'Drift',  label:'Drift',    playlist:'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8',
+    cyan:'#b06aff', glow:'rgba(176,106,255,0.22)', cursor:'rgba(176,106,255,0.30)',
+    rain:0.22, grain:0.050, tint:'rgba(22,0,44,0.24)' },
+  { name:'Cipher', label:'Cipher',   playlist:'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8',
+    cyan:'#ff5580', glow:'rgba(255,85,128,0.22)', cursor:'rgba(255,85,128,0.30)',
+    rain:0.55, grain:0.042, tint:'rgba(38,0,14,0.22)' },
+];
+let currentScene = 0;
+let rainMult = 1.0;
+
+function applyScene(idx, animate) {
+  const s = SCENES[idx];
+  const root = document.documentElement;
+  root.style.setProperty('--cyan',         s.cyan);
+  root.style.setProperty('--glow',         s.glow);
+  root.style.setProperty('--cursor-glow',  s.cursor);
+  root.style.setProperty('--grain-opacity', s.grain);
+  document.getElementById('tint').style.background = s.tint;
+  rainMult = s.rain;
+  if (animate) {
+    const lbl = document.getElementById('label');
+    scrambleText(lbl, s.label, 420);
+  } else {
+    document.getElementById('label').textContent = s.label;
+  }
+}
+
+document.querySelectorAll('.scene').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const idx = parseInt(btn.dataset.scene);
+    if (idx === currentScene) return;
+    currentScene = idx;
+    document.querySelectorAll('.scene').forEach(s => { s.classList.remove('on'); s.setAttribute('aria-selected','false'); });
+    btn.classList.add('on'); btn.setAttribute('aria-selected','true');
+    applyScene(idx, true);
+    // In a full impl, load new playlist: if (ytReady) yt.loadPlaylist(...)
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════
+// YOUTUBE
+// ═══════════════════════════════════════════════════════════════
 const PLAYLIST = 'PLzoyJrzmctOqXp-xZT5CQyaJwdk2Ck3J8';
 let yt = null, ytReady = false, playing = false;
 
 function onYouTubeIframeAPIReady() {
   yt = new YT.Player('yt-player', {
-    height:'1', width:'1',
-    playerVars:{listType:'playlist',list:PLAYLIST,autoplay:0,controls:0,disablekb:1,fs:0,iv_load_policy:3,modestbranding:1,rel:0},
-    events:{
-      onReady: e => { ytReady=true; e.target.setVolume(80); },
+    height: '1', width: '1',
+    playerVars: { listType:'playlist', list:PLAYLIST, autoplay:0, controls:0, disablekb:1, fs:0, iv_load_policy:3, modestbranding:1, rel:0 },
+    events: {
+      onReady: e => { ytReady = true; e.target.setVolume(80); },
       onStateChange: e => {
-        const S=YT.PlayerState;
-        if(e.data===S.PLAYING){ playing=true; updPlay(); updPill(); }
-        else if(e.data===S.PAUSED){ playing=false; updPlay(); updPill(); }
-        else if(e.data===S.ENDED){ yt.nextVideo(); }
+        const S = YT.PlayerState;
+        if (e.data === S.PLAYING)      { playing = true;  updPlay(); updPill(); }
+        else if (e.data === S.PAUSED)  { playing = false; updPlay(); updPill(); }
+        else if (e.data === S.ENDED)   { yt.nextVideo(); }
       },
-      onError: () => setTimeout(()=>yt&&yt.nextVideo(), 800)
+      onError: () => setTimeout(() => yt && yt.nextVideo(), 800)
     }
   });
 }
 
-function togglePlay(){
-  if(!ytReady) return;
+function togglePlay() {
+  if (!ytReady) return;
   playing ? yt.pauseVideo() : yt.playVideo();
 }
-function updPlay(){
-  document.getElementById('play').classList.toggle('on', playing);
+
+function updPlay() {
+  const playBtn = document.getElementById('play');
+  playBtn.classList.toggle('on', playing);
+  playBtn.setAttribute('aria-pressed', playing ? 'true' : 'false');
+  playBtn.setAttribute('aria-label', playing ? 'Pause' : 'Play');
   document.getElementById('play-path').setAttribute('d',
     playing ? 'M7 4H12V24H7V4ZM16 4H21V24H16V4Z' : 'M8 5.5L22 14L8 22.5V5.5Z'
   );
+  document.getElementById('eq').classList.toggle('on', playing);
 }
-function updPill(){
-  const pill=document.getElementById('pill'), txt=document.getElementById('pill-txt');
+
+function updPill() {
+  const pill = document.getElementById('pill');
+  const txt  = document.getElementById('pill-txt');
+  const title = document.getElementById('track-title');
   pill.classList.toggle('on', playing);
-  if(playing){ try{ const d=yt.getVideoData(); txt.textContent=d.title||'online'; }catch(e){ txt.textContent='online'; } }
-  else txt.textContent='standby';
+
+  if (playing) {
+    try {
+      const d = yt.getVideoData();
+      const t = d.title || 'online';
+      txt.textContent = t;
+      // Update track display
+      title.textContent = t;
+      if (t.length > 28) {
+        title.textContent = t + '  //  ' + t;
+        title.classList.add('scrolling');
+      } else {
+        title.classList.remove('scrolling');
+      }
+    } catch(e) {
+      txt.textContent = 'online';
+      title.textContent = '— live —';
+    }
+  } else {
+    txt.textContent = 'standby';
+    title.textContent = '— standby —';
+    title.classList.remove('scrolling');
+  }
 }
 
 document.getElementById('play').addEventListener('click', togglePlay);
-document.getElementById('prev-btn').addEventListener('click', ()=>ytReady&&yt.previousVideo());
-document.getElementById('next-btn').addEventListener('click', ()=>ytReady&&yt.nextVideo());
-document.getElementById('vol').addEventListener('input', e=>{
-  const v=parseInt(e.target.value);
-  document.getElementById('vol-val').textContent=v+'%';
-  if(ytReady) yt.setVolume(v);
+document.getElementById('prev-btn').addEventListener('click', () => ytReady && yt.previousVideo());
+document.getElementById('next-btn').addEventListener('click', () => ytReady && yt.nextVideo());
+document.getElementById('vol').addEventListener('input', e => {
+  const v = parseInt(e.target.value);
+  document.getElementById('vol-val').textContent = v + '%';
+  e.target.setAttribute('aria-valuetext', v + '%');
+  if (ytReady) yt.setVolume(v);
+  const pct = v + '%';
+  e.target.style.background = `linear-gradient(90deg, rgba(0,212,255,0.5) ${pct}, rgba(0,212,255,0.1) ${pct})`;
 });
 
-// ── Rain Animation ────────────────────────────────────────────
-// Canvas is position:fixed + inset:0. We resize it to match the
-// window exactly. This is guaranteed to be pixel-perfect aligned.
+// ═══════════════════════════════════════════════════════════════
+// RAIN ANIMATION
+// ═══════════════════════════════════════════════════════════════
 const rainCanvas = document.getElementById('rain');
 const rctx = rainCanvas.getContext('2d');
 
-function resizeRain(){
+function resizeRain() {
   rainCanvas.width  = window.innerWidth;
   rainCanvas.height = window.innerHeight;
 }
 window.addEventListener('resize', resizeRain);
 resizeRain();
 
-// Raindrop system
 const DROPS = [];
-const DROP_COUNT = 200;
+const DROP_COUNT = 220;
 
-function initDrops(){
-  for(let i=0; i<DROP_COUNT; i++){
+function initDrops() {
+  for (let i = 0; i < DROP_COUNT; i++) {
     DROPS.push({
       x:     Math.random() * window.innerWidth,
       y:     Math.random() * window.innerHeight,
-      len:   8  + Math.random() * 22,
-      speed: 8  + Math.random() * 14,
-      width: 0.5 + Math.random() * 0.8,
-      alpha: 0.1 + Math.random() * 0.45,
-      angle: 0.25 + Math.random() * 0.18, // slight diagonal
+      len:   8  + Math.random() * 24,
+      speed: 7  + Math.random() * 15,
+      width: 0.4 + Math.random() * 0.7,
+      alpha: 0.08 + Math.random() * 0.38,
+      angle: 0.22 + Math.random() * 0.16,
     });
   }
 }
 initDrops();
 
-// Splashes at the bottom
 const SPLASHES = [];
-function addSplash(x){
-  SPLASHES.push({ x, y: window.innerHeight - 2, r:0, maxR:3+Math.random()*6, alpha:0.6, life:0 });
+function addSplash(x) {
+  SPLASHES.push({ x, y: window.innerHeight - 2, r: 0, maxR: 3 + Math.random() * 5, alpha: 0.55, life: 0 });
 }
 
-function drawRain(){
-  rctx.clearRect(0,0,rainCanvas.width,rainCanvas.height);
+function drawRain() {
+  rctx.clearRect(0, 0, rainCanvas.width, rainCanvas.height);
+  const W = rainCanvas.width, H = rainCanvas.height;
 
-  const W=rainCanvas.width, H=rainCanvas.height;
-
-  DROPS.forEach(d=>{
+  DROPS.forEach(d => {
     const dx = Math.sin(d.angle) * d.len;
     const dy = Math.cos(d.angle) * d.len;
-
-    // Streak gradient — bright head, fading tail
-    const grad = rctx.createLinearGradient(d.x, d.y, d.x+dx, d.y+dy);
-    grad.addColorStop(0, `rgba(160,220,255,${d.alpha})`);
-    grad.addColorStop(1, `rgba(120,180,240,0)`);
-
+    const grad = rctx.createLinearGradient(d.x, d.y, d.x + dx, d.y + dy);
+    grad.addColorStop(0, `rgba(160,220,255,${Math.min(0.98, d.alpha * rainMult)})`);
+    grad.addColorStop(1, 'rgba(120,180,240,0)');
     rctx.beginPath();
     rctx.moveTo(d.x, d.y);
     rctx.lineTo(d.x + dx, d.y + dy);
     rctx.strokeStyle = grad;
     rctx.lineWidth = d.width;
     rctx.stroke();
-
-    // Advance drop
     d.x += Math.sin(d.angle) * d.speed;
     d.y += Math.cos(d.angle) * d.speed;
-
-    // Splash when hitting bottom
-    if(d.y > H){
-      if(Math.random()<0.3) addSplash(d.x);
-      d.y = -d.len;
-      d.x = Math.random() * W;
-    }
-    if(d.x > W + 30) d.x = -30;
+    if (d.y > H) { if (Math.random() < 0.28) addSplash(d.x); d.y = -d.len; d.x = Math.random() * W; }
+    if (d.x > W + 30) d.x = -30;
   });
 
-  // Draw splashes
-  for(let i=SPLASHES.length-1; i>=0; i--){
-    const s=SPLASHES[i];
-    s.r += 0.4;
-    s.alpha -= 0.04;
-    s.life++;
-    if(s.alpha<=0){ SPLASHES.splice(i,1); continue; }
+  for (let i = SPLASHES.length - 1; i >= 0; i--) {
+    const s = SPLASHES[i];
+    s.r += 0.38; s.alpha -= 0.038; s.life++;
+    if (s.alpha <= 0) { SPLASHES.splice(i, 1); continue; }
     rctx.beginPath();
-    rctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    rctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
     rctx.strokeStyle = `rgba(160,220,255,${s.alpha})`;
     rctx.lineWidth = 0.5;
     rctx.stroke();
@@ -553,88 +1106,106 @@ function drawRain(){
 }
 requestAnimationFrame(drawRain);
 
-// ── WebGL Spotlight ───────────────────────────────────────────
-const sc = document.getElementById('spotlight');
-const gl = sc.getContext('webgl')||sc.getContext('experimental-webgl');
-let mx=-1, my=-1;
+// ═══════════════════════════════════════════════════════════════
+// CUSTOM CURSOR
+// ═══════════════════════════════════════════════════════════════
+(function() {
+  if ('ontouchstart' in window) return;
+  const dot  = document.getElementById('cursor-dot');
+  const ring = document.getElementById('cursor-ring');
+  let cx = -200, cy = -200, rx = -200, ry = -200;
 
-if(gl && !('ontouchstart' in window)){
-  function rsGL(){ sc.width=window.innerWidth; sc.height=window.innerHeight; gl.viewport(0,0,sc.width,sc.height); }
-  window.addEventListener('resize',rsGL); rsGL();
-  document.addEventListener('mousemove',e=>{ mx=e.clientX; my=e.clientY; });
-  document.addEventListener('mouseleave',()=>{ mx=-1; my=-1; });
+  const bgEl = document.getElementById('bg');
+  document.addEventListener('mousemove', e => {
+    cx = e.clientX; cy = e.clientY;
+    const px = (e.clientX / window.innerWidth  - 0.5) * 16;
+    const py = (e.clientY / window.innerHeight - 0.5) * 10;
+    bgEl.style.transform = `scale(1.04) translate(${px}px,${py}px)`;
+  });
+  document.addEventListener('mouseleave', () => {
+    cx = -200; cy = -200;
+    bgEl.style.transform = 'scale(1.04) translate(0px,0px)';
+  });
 
-  const vs=`attribute vec2 p;void main(){gl_Position=vec4(p,0,1);}`;
-  const fs=`precision mediump float;uniform vec2 res,mouse;uniform float t;void main(){
-    vec2 uv=gl_FragCoord.xy/res,m=mouse/res;m.y=1.-m.y;
-    float d=distance(uv,m);
-    float spot=smoothstep(.08,.0,d);
-    vec3 col=vec3(.05,.45,.7)*spot*.10;
-    float r1=smoothstep(.001,.0,abs(d-.04-.005*sin(t*3.)));
-    col+=vec3(.2,.8,1.)*r1*.25;
-    float r2=smoothstep(.001,.0,abs(d-.07));
-    col+=vec3(.1,.6,.9)*r2*.10;
-    gl_FragColor=vec4(col,1.);
-  }`;
-  function sh(type,src){ const s=gl.createShader(type); gl.shaderSource(s,src); gl.compileShader(s); return s; }
-  const prog=gl.createProgram();
-  gl.attachShader(prog,sh(gl.VERTEX_SHADER,vs));
-  gl.attachShader(prog,sh(gl.FRAGMENT_SHADER,fs));
-  gl.linkProgram(prog); gl.useProgram(prog);
-  const buf=gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER,buf);
-  gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,1,1]),gl.STATIC_DRAW);
-  const ploc=gl.getAttribLocation(prog,'p');
-  gl.enableVertexAttribArray(ploc); gl.vertexAttribPointer(ploc,2,gl.FLOAT,false,0,0);
-  const uR=gl.getUniformLocation(prog,'res'), uM=gl.getUniformLocation(prog,'mouse'), uT=gl.getUniformLocation(prog,'t');
-  let tt=0;
-  (function frame(){ tt+=.016; gl.uniform2f(uR,sc.width,sc.height); gl.uniform2f(uM,mx<0?-9999:mx,my); gl.uniform1f(uT,tt); gl.drawArrays(gl.TRIANGLE_STRIP,0,4); requestAnimationFrame(frame); })();
-} else {
-  sc.style.display='none';
+  // Hover detection — all interactive elements
+  document.querySelectorAll('button,a,[role="tab"],[role="button"],[tabindex="0"]').forEach(el => {
+    el.addEventListener('mouseenter', () => document.body.classList.add('c-hover'));
+    el.addEventListener('mouseleave', () => document.body.classList.remove('c-hover'));
+  });
+  document.addEventListener('mousedown', () => document.body.classList.add('c-click'));
+  document.addEventListener('mouseup',   () => {
+    document.body.classList.remove('c-click');
+    // re-detect hover after click release
+    const hov = document.querySelector('button:hover,a:hover,[role="tab"]:hover');
+    if (!hov) document.body.classList.remove('c-hover');
+  });
+
+  // Smooth lag loop
+  (function tick() {
+    rx += (cx - rx) * 0.11;
+    ry += (cy - ry) * 0.11;
+    dot.style.left  = cx + 'px';
+    dot.style.top   = cy + 'px';
+    ring.style.left = rx + 'px';
+    ring.style.top  = ry + 'px';
+    requestAnimationFrame(tick);
+  })();
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// POMODORO
+// ═══════════════════════════════════════════════════════════════
+const CIRC = 226;
+const p = { run:false, phase:'work', el:0, sess:0, tmr:null, w:25*60, b:5*60, lb:15*60 };
+function pdur() { return p.phase==='work'?p.w:p.phase==='break'?p.b:p.lb; }
+function pui() {
+  const d = pdur(), r = d - p.el;
+  document.getElementById('ptime').textContent = String(Math.floor(r/60)).padStart(2,'0')+':'+String(r%60).padStart(2,'0');
+  document.getElementById('pphase').textContent = p.phase==='work'?'work':'rest';
+  document.getElementById('pp').style.strokeDashoffset = CIRC*(1-p.el/d);
+  const dots = document.getElementById('pdots'); dots.innerHTML = '';
+  for (let i=0;i<4;i++) { const el=document.createElement('div'); el.className='pd'+(i<p.sess%4?' on':''); dots.appendChild(el); }
 }
-
-// ── Pomodoro ──────────────────────────────────────────────────
-const CIRC=226;
-const p={run:false,phase:'work',el:0,sess:0,tmr:null,w:25*60,b:5*60,lb:15*60};
-function pdur(){ return p.phase==='work'?p.w:p.phase==='break'?p.b:p.lb; }
-function pui(){
-  const d=pdur(), r=d-p.el;
-  document.getElementById('ptime').textContent=String(Math.floor(r/60)).padStart(2,'0')+':'+String(r%60).padStart(2,'0');
-  document.getElementById('pphase').textContent=p.phase==='work'?'work':'rest';
-  document.getElementById('pp').style.strokeDashoffset=CIRC*(1-p.el/d);
-  const dots=document.getElementById('pdots'); dots.innerHTML='';
-  for(let i=0;i<4;i++){ const d=document.createElement('div'); d.className='pd'+(i<p.sess%4?' on':''); dots.appendChild(d); }
-}
-function padv(){
-  if(p.phase==='work'){ p.sess++; p.el=0; p.phase=p.sess%4===0?'longbreak':'break'; if(playing&&ytReady)yt.pauseVideo(); pnotify('Rest!'); }
+function padv() {
+  if (p.phase==='work') { p.sess++; p.el=0; p.phase=p.sess%4===0?'longbreak':'break'; if(playing&&ytReady)yt.pauseVideo(); pnotify('Rest!'); }
   else { p.el=0; p.phase='work'; if(ytReady)yt.playVideo(); pnotify('Back to work!'); }
   pui();
 }
-function pstart(){
-  if(p.run){ clearInterval(p.tmr); p.run=false; document.getElementById('ps-btn').textContent='Resume'; }
+function pstart() {
+  if (p.run) { clearInterval(p.tmr); p.run=false; document.getElementById('ps-btn').textContent='Resume'; }
   else { if(!playing)togglePlay(); p.run=true; p.tmr=setInterval(()=>{ p.el++; p.el>=pdur()?padv():pui(); },1000); document.getElementById('ps-btn').textContent='Pause'; }
 }
-function preset(){ clearInterval(p.tmr); p.run=false; p.el=0; p.phase='work'; p.sess=0; document.getElementById('ps-btn').textContent='Start'; pui(); }
-function pnotify(m){ if('Notification'in window&&Notification.permission==='granted')new Notification('MyBrainFM',{body:m}); }
+function preset() { clearInterval(p.tmr); p.run=false; p.el=0; p.phase='work'; p.sess=0; document.getElementById('ps-btn').textContent='Start'; pui(); }
+function pnotify(m) { if('Notification'in window&&Notification.permission==='granted') new Notification('MyBrainFM',{body:m}); }
 
-document.getElementById('ps-btn').addEventListener('click',pstart);
-document.getElementById('pr-btn').addEventListener('click',preset);
+document.getElementById('ps-btn').addEventListener('click', pstart);
+document.getElementById('pr-btn').addEventListener('click', preset);
 [['pw','w','pw-val'],['pbr','b','pb-val'],['plb','lb','plb-val']].forEach(([id,key,vid])=>{
-  document.getElementById(id).addEventListener('input',e=>{
+  document.getElementById(id).addEventListener('input', e=>{
     const v=parseInt(e.target.value);
     document.getElementById(vid).textContent=v;
     p[key]=v*60; if(!p.run){ p.el=0; pui(); }
   });
 });
-document.getElementById('timer-btn').addEventListener('click',()=>{
-  const el=document.getElementById('pomo');
-  const h=el.classList.toggle('hidden');
-  document.getElementById('timer-btn').classList.toggle('on',!h);
-  if(!h){ pui(); if('Notification'in window&&Notification.permission==='default')Notification.requestPermission(); }
-  if(h&&p.run){ clearInterval(p.tmr); p.run=false; }
+document.getElementById('timer-btn').addEventListener('click', ()=>{
+  const el = document.getElementById('pomo');
+  const h = el.classList.toggle('hidden');
+  const tb = document.getElementById('timer-btn');
+  tb.classList.toggle('on', !h);
+  tb.setAttribute('aria-expanded', h ? 'false' : 'true');
+  if (!h) { pui(); if('Notification'in window&&Notification.permission==='default')Notification.requestPermission(); }
+  if (h && p.run) { clearInterval(p.tmr); p.run=false; }
 });
 
 pui();
+
+// ═══════════════════════════════════════════════════════════════
+// VOLUME RANGE — initial fill
+// ═══════════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', ()=>{
+  const vol = document.getElementById('vol');
+  vol.style.background = `linear-gradient(90deg, rgba(0,212,255,0.5) 80%, rgba(0,212,255,0.1) 80%)`;
+});
 </script>
 </body>
 </html>
